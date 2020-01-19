@@ -112,15 +112,13 @@ public class State {
 
 				newNode.x[i] = node;
 				node.value = String.valueOf(word);
-				if (state.emits != null) {
-					node.value += String.format("{%d}", state.emits.size());
-//					node.value += state.emits.size() > 1 ? '+' : '*';
-				}
-
 				if (state.failure != null && state.failure.depth != 0) {
 					node.value += String.valueOf(state.failure.depth);
 				}
-
+				if (state.emits != null) {
+					node.value += state.emits.size() > 1 ? String.format("*%d", state.emits.size()) : '+';
+//					node.value += state.emits.size() > 1 ? '+' : '*';
+				}
 			}
 		}
 		// allocate node for left child at next level in tree;
@@ -134,14 +132,13 @@ public class State {
 
 				newNode.y[i - x_length] = node;
 				node.value = String.valueOf(word);
-				if (state.emits != null) {
-					node.value += String.format("{%d}", state.emits.size());
-//					node.value += state.emits.size() > 1 ? '+' : '*';
-				}
 				if (state.failure != null && state.failure.depth != 0) {
 					node.value += String.valueOf(state.failure.depth);
 				}
-
+				if (state.emits != null) {
+					node.value += state.emits.size() > 1 ? String.format("*%d", state.emits.size()) : '+';
+//					node.value += String.format("{%d}", state.emits.size());
+				}
 			}
 		}
 
@@ -205,6 +202,7 @@ public class State {
 			for (;;) {
 				if (keyword.startsWith(newPrefix) && newPrefix.length() < keyword.length()) {
 					state.locate_state(newPrefix, keyword, list);
+					break;
 				}
 
 				if (newPrefix.isEmpty())
@@ -260,6 +258,14 @@ public class State {
 		}
 	}
 
+	static void deleteFailureStates(List<State> list, String keyword, int char_length) {
+		char character = keyword.charAt(0);
+		for (State parent : list) {
+			State state = parent.success.get(character);
+			state.deleteFailureStates(parent, keyword, char_length);
+		}
+	}
+
 	static State newFailureState(State currentState, char transition) {
 		State state;
 		do {
@@ -311,6 +317,22 @@ public class State {
 		emits.add(tuple);
 	}
 
+	public void deleteEmit(int char_length) {
+		if (this.emits == null) {
+			return;
+		}
+
+		for (Tuple t : emits) {
+			if (t.char_length == char_length) {
+				emits.remove(t);
+				if (emits.isEmpty()) {
+					emits = null;
+				}
+				break;
+			}
+		}
+	}
+
 	public void addEmit(Collection<Tuple> emits) {
 		for (Tuple emit : emits) {
 			addEmit(emit);
@@ -343,6 +365,16 @@ public class State {
 
 		failure = newFailureState;
 		updateEmit(newFailureState.emit());
+		return true;
+	}
+
+	public boolean delete_failure(State parent, char ch) {
+		State newFailureState = State.newFailureState(parent, ch);
+		if (failure == newFailureState) {
+			return false;
+		}
+
+		failure = newFailureState;
 		return true;
 	}
 
@@ -391,19 +423,34 @@ public class State {
 
 		keyword = keyword.substring(1);
 
-		State newFailureState = rootState;
-
-		if (failure.depth <= newFailureState.depth) {
-			failure = newFailureState;			
+		if (failure.depth <= rootState.depth) {
+			failure = rootState;
 		}
-		updateEmit(newFailureState.emit());
+		updateEmit(rootState.emit());
 
 		// Second, determine the fail state for all depth > 1 state
 
 		if (!keyword.isEmpty()) {
 			State state = success.get(keyword.charAt(0));
 			if (state != null) {
-				state.constructFailureStates(this, rootState, keyword);
+				state.constructFailureStates_(this, rootState, keyword);
+			}
+		}
+	}
+
+	void deleteFailureStates(State parent, String keyword, int char_length) {
+		char character = keyword.charAt(0);
+
+		keyword = keyword.substring(1);
+
+		delete_failure(parent, character);
+
+		if (keyword.isEmpty()) {
+			deleteEmit(char_length);
+		} else {
+			State state = success.get(keyword.charAt(0));
+			if (state != null) {
+				state.deleteFailureStates(this, keyword, char_length);
 			}
 		}
 	}

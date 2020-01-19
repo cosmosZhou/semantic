@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,6 +16,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.text.ParseException;
@@ -480,7 +482,7 @@ public class Utility {
 
 		writer.close();
 	}
-	
+
 	static public class Timer {
 		long start;
 
@@ -1223,6 +1225,23 @@ public class Utility {
 			cout += lineSeparator;
 
 			return cout;
+		}
+	}
+
+	public static class Printer implements Closeable {
+		public Printer(String file) throws FileNotFoundException {
+			out = System.out;
+			ps = new PrintStream(file);
+			System.setOut(ps);
+		}
+
+		PrintStream out;
+		PrintStream ps;
+
+		public void close() {
+			ps.close();
+			System.setOut(out);
+
 		}
 	}
 

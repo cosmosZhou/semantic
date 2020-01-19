@@ -2,6 +2,7 @@ package org.ahocorasick.trie;
 
 import org.ahocorasick.interval.IntervalTree;
 import org.ahocorasick.interval.Intervalable;
+import org.ahocorasick.trie.State.Tuple;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Stack;
 import java.util.concurrent.LinkedBlockingDeque;
 
 /**
@@ -64,7 +66,7 @@ public class Trie {
 			return;
 		}
 
-		if (keyword.equals("ba"))
+		if (keyword.equals("genesis"))
 			System.out.printf("update %s = %s\n", keyword, value);
 
 		ArrayList<State.Transition> start = new ArrayList<State.Transition>();
@@ -88,16 +90,44 @@ public class Trie {
 //		if (keyword.equals("意思"))
 //			System.out.printf("delete %s\n", keyword);
 
-		ArrayList<State.Transition> start = new ArrayList<State.Transition>();
-
 		State currentState = this.rootState;
+		Stack<State> parent = new Stack<State>();
 		for (int i = 0; i < keyword.length(); ++i) {
 			char character = keyword.charAt(i);
 
-			currentState = currentState.updateState(character, start);
+			parent.push(currentState);
+			currentState = currentState.nextStateIgnoreRootState(character);
+			if (currentState == null)
+				return;
 		}
 
-		updateFailureStates(start, keyword);
+		currentState.deleteEmit(keyword.length());
+
+		char character = 0;
+		int numOfDeletion = 0;
+		for (int i = keyword.length() - 1; i >= 0; --i) {
+			if (!currentState.success.isEmpty())
+				break;
+
+			if (currentState.emits != null) {
+				boolean tobebroken = false;
+				for (Tuple tuple : currentState.emits) {
+					if (tuple.char_length == i + 1) {
+						tobebroken = true;
+						break;
+					}
+				}
+				if (tobebroken) {
+					break;
+				}
+			}
+			character = keyword.charAt(i);
+			currentState = parent.pop();
+			currentState.success.remove(character);
+			++numOfDeletion;
+		}
+
+		deleteFailureStates(currentState, character, keyword, numOfDeletion);
 	}
 
 	public void build(Map<String, String> map) {
@@ -236,6 +266,27 @@ public class Trie {
 		}
 
 		State.constructFailureStates(list, rootState, keyword);
+	}
+
+	void deleteFailureStates(State parent, char character, String keyword, int numOfDeletion) {
+		int char_length = keyword.length();
+		State rootState = this.rootState;
+		List<State> list;
+		if (parent.depth == 0) {
+			list = parent.locate_state(character);
+		} else {
+			int mid = keyword.length() - numOfDeletion;
+			String _keyword = keyword.substring(mid - 1);
+			if (keyword.isEmpty()|| keyword.length() < mid)
+				return;
+
+			keyword = keyword.substring(0, mid);
+			list = rootState.locate_state(keyword);
+
+			keyword = _keyword;
+		}
+
+		State.deleteFailureStates(list, keyword, char_length);
 	}
 
 	void storeEmits(int position, State currentState, List<Emit> collectedEmits) {
