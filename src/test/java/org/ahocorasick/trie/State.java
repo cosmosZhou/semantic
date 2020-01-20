@@ -286,15 +286,6 @@ public class State {
 		return nextState;
 	}
 
-	public State updateState(char character) {
-		State nextState = nextStateIgnoreRootState(character);
-		if (nextState == null) {
-			nextState = new State(depth + 1);
-			success.put(character, nextState);
-		}
-		return nextState;
-	}
-
 	public void addEmit(Tuple tuple) {
 		if (this.emits == null) {
 			this.emits = new ArrayList<Tuple>();
