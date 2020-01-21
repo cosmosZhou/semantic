@@ -57,8 +57,6 @@ public class Common {
 	static TreeMap<String, String> dictionaryMap;
 	static String text;
 	static boolean debug = false;
-//	static String wordsToBeDeleted = "dictatorial";
-	static String wordsToBeDeleted = "aa";
 	
 	static {
 		dictionaryMap = new TreeMap<String, String>();
@@ -127,22 +125,17 @@ public class Common {
 		return result.size();
 	}
 
-	static Trie naiveDelete() throws Exception {
+	static Trie naiveDelete(String wordsToBeDeleted) throws Exception {
 
 		Trie ahoCorasickNaive = new Trie();
-
-		TreeMap<String, String> dictionary = new TreeMap<String, String>();
-		dictionary.putAll(dictionaryMap);
-		dictionary.put(wordsToBeDeleted, String.format("[%s]", wordsToBeDeleted));
-
-		ahoCorasickNaive.build(dictionary);
+		ahoCorasickNaive.build(dictionaryMap);
 
 		if (debug) {
 			System.out.println("before deletion:");
 			System.out.println(ahoCorasickNaive.rootState);
 		}
 
-		ahoCorasickNaive.delete(wordsToBeDeleted);
+		ahoCorasickNaive.erase(wordsToBeDeleted);
 		if (debug)
 			System.out.println(ahoCorasickNaive.rootState);
 		

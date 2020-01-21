@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.TreeMap;
 
+import org.ahocorasick.trie.Trie;
+
 import com.util.Utility;
 
 import junit.framework.TestCase;
@@ -15,9 +17,6 @@ import junit.framework.TestCase;
  * @author hankcs
  */
 public class DetectFaultForDelete extends TestCase {
-	static {
-		dictionaryMap.remove(wordsToBeDeleted);
-	}
 
 	void initialize(Collection<String> dictionary) throws IOException {
 		dictionaryMap = new TreeMap<String, String>();
@@ -28,8 +27,13 @@ public class DetectFaultForDelete extends TestCase {
 		System.out.println("dictionary.size() = " + dictionary.size());
 	}
 	
+	String wordsToBeDeleted = "aa";
+	
 	public boolean testNaiveUpdate() throws Exception {
-		return naiveConstruct().rootState.equals(naiveDelete().rootState);
+		Trie trieDelete = naiveDelete(wordsToBeDeleted);
+		dictionaryMap.remove(wordsToBeDeleted);
+		Trie trieWhole = naiveConstruct();
+		return trieWhole.rootState.equals(trieDelete.rootState);
 	}
 
 	void rotate(ArrayList<String> list) {

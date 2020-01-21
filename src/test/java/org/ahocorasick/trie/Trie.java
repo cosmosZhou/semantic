@@ -66,8 +66,8 @@ public class Trie {
 			return;
 		}
 
-		if (keyword.equals("genesis"))
-			System.out.printf("update %s = %s\n", keyword, value);
+//		if (keyword.equals("genesis"))
+//			System.out.printf("update %s = %s\n", keyword, value);
 
 		ArrayList<State.Transition> start = new ArrayList<State.Transition>();
 
@@ -82,7 +82,7 @@ public class Trie {
 		updateFailureStates(start, keyword);
 	}
 
-	public void delete(String keyword) {
+	public void erase(String keyword) {
 		if (keyword == null || keyword.length() == 0) {
 			return;
 		}
@@ -246,17 +246,31 @@ public class Trie {
 			transit.set_failure();
 		}
 
-		State.Transition keywordHead = queue.get(0);
+		List<State> list;
+		State.Transition keywordHead = null;
+
+		if (!queue.isEmpty()) {
+			keywordHead = queue.get(0);
+			if (keywordHead.parent.depth != 0) {
+				keywordHead = null;
+			}
+		}
 
 		State rootState = this.rootState;
-		List<State> list;
-		if (keywordHead.parent.depth == 0) {
-			list = keywordHead.parent.locate_state(keywordHead.character);
 
+		if (keywordHead != null) {
+			list = keywordHead.parent.locate_state(keywordHead.character);
 		} else {
-			int mid = keyword.length() - (queue.size() - 1);
-			String _keyword = keyword.substring(mid - 1);
-			keyword = keyword.substring(0, mid);
+			String _keyword;
+			if (queue.isEmpty()) {
+				int mid = keyword.length();
+				_keyword = keyword.substring(mid - 1);				
+			} else {
+				int mid = keyword.length() - (queue.size() - 1);
+				_keyword = keyword.substring(mid - 1);
+				keyword = keyword.substring(0, mid);
+			}
+
 			list = rootState.locate_state(keyword);
 
 			for (int i = 0; i < keyword.length() - 1; ++i) {
@@ -277,7 +291,7 @@ public class Trie {
 		} else {
 			int mid = keyword.length() - numOfDeletion;
 			String _keyword = keyword.substring(mid - 1);
-			if (keyword.isEmpty()|| keyword.length() < mid)
+			if (keyword.isEmpty() || keyword.length() < mid)
 				return;
 
 			keyword = keyword.substring(0, mid);
