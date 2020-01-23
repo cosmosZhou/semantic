@@ -4,6 +4,9 @@ import org.ahocorasick.interval.IntervalTree;
 import org.ahocorasick.interval.Intervalable;
 import org.ahocorasick.trie.State.Tuple;
 
+import com.util.Utility;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +14,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.TreeMap;
 import java.util.concurrent.LinkedBlockingDeque;
 
 /**
@@ -264,7 +268,7 @@ public class Trie {
 			String _keyword;
 			if (queue.isEmpty()) {
 				int mid = keyword.length();
-				_keyword = keyword.substring(mid - 1);				
+				_keyword = keyword.substring(mid - 1);
 			} else {
 				int mid = keyword.length() - (queue.size() - 1);
 				_keyword = keyword.substring(mid - 1);
@@ -311,5 +315,4 @@ public class Trie {
 			}
 		}
 	}
-
 }

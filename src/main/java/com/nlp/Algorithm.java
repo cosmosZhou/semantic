@@ -1,5 +1,9 @@
 package com.nlp;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.TreeMap;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -9,14 +13,22 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 
+import org.ahocorasick.trie.Trie;
 import org.apache.commons.lang.SystemUtils;
 
 import com.deeplearning.CWSTagger;
 import com.deeplearning.NERTaggerDict;
 import com.deeplearning.Service;
+import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
 import com.util.HttpClientWebApp;
+import com.util.Native;
 import com.util.Utility;
 
+//compile -Pprod install -Pprod
+//sh tomcat/bin/startup.sh 
+//tail -100f tomcat/logs/catalina.out
+//http://192.168.3.133:9000/semantic/algorithm/ahocorasick/test
+//http://localhost:8080/semantic/algorithm/ahocorasick/test
 @Path("algorithm")
 public class Algorithm {
 	static {
@@ -25,7 +37,7 @@ public class Algorithm {
 			Utility.workingDirectory = "d:/360/solution/";
 		} else {
 			System.out.println("SystemUtils.IS_OS_LINUX");
-			Utility.workingDirectory = "/home/v-rogenhxh/deeplearning/";
+			Utility.workingDirectory = "/home/zhoulizhi/solution/";
 		}
 	}
 
@@ -76,7 +88,7 @@ public class Algorithm {
 
 		String exclude = request.getParameter("exclude");
 //		System.out.println("exclude = " + exclude);
-		
+
 		String slot = request.getParameter("slot");
 //		System.out.println("slot = " + slot);
 
@@ -315,7 +327,68 @@ public class Algorithm {
 		return null;
 	}
 
+	@GET
+	@Path("ahocorasick/test")
+	@Produces("text/plain;charset=utf-8")
+	public String ahocorasick_test() throws Exception {
+		String path2Dictionary = Utility.workingDirectory + "corpus/ahocorasick/en/dictionary.txt";
+
+		TreeMap<String, String> dictionaryMap = new TreeMap<String, String>();
+
+		for (String word : new Utility.Text(path2Dictionary).collect(new ArrayList<String>())) {
+			dictionaryMap.put(word, String.format("[%s]", word));
+		}
+
+		HashMap<String, Object> json = new HashMap<String, Object>();
+
+		Trie ahoCorasickNaive = new Trie();
+		ahoCorasickNaive.build(dictionaryMap);
+
+		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/en/text.txt").fetchContent();
+
+		long start = System.currentTimeMillis();
+		int count = ahoCorasickNaive.parseText(text).size();
+		long cost = System.currentTimeMillis() - start;
+
+		HashMap<String, Object> jsonNaive = new HashMap<String, Object>();
+		jsonNaive.put("count", count);
+		jsonNaive.put("cost", cost);
+		json.put("naiveImplementation", jsonNaive);
+
+		Native.initializeAhocorasickDictionary(path2Dictionary);
+		start = System.currentTimeMillis();
+		count = Native.parseText(text).length;
+		cost = System.currentTimeMillis() - start;
+
+		HashMap<String, Object> jsonNative = new HashMap<String, Object>();
+		jsonNative.put("count", count);
+		jsonNative.put("cost", cost);
+		json.put("nativeImplementation", jsonNative);
+
+		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>();
+		ahoCorasickDoubleArrayTrie.build(dictionaryMap);
+
+		start = System.currentTimeMillis();
+		count = ahoCorasickDoubleArrayTrie.parseText(text).size();
+		cost = System.currentTimeMillis() - start;
+
+		HashMap<String, Object> jsonDoubleArray = new HashMap<String, Object>();
+		jsonDoubleArray.put("count", count);
+		jsonDoubleArray.put("cost", cost);
+		json.put("DoubleArrayImplementation", jsonDoubleArray);
+
+		return Utility.jsonify(json);
+	}
+
+	@GET
+	@Path("ahocorasick/test/native")
+	@Produces("text/plain;charset=utf-8")
+	public String ahocorasick_test_native() throws Exception {
+		String path2Dictionary = Utility.workingDirectory + "corpus/ahocorasick/en/dictionary.txt";
+		Native.initializeAhocorasickDictionary(path2Dictionary);
+
+		Native.ahocorasickTest();
+		return "true";
+	}
+
 }
-//cd /usr/local/tomcat/webapps/nlp/WEB-INF/classes/
-//lcd ../nlp/target/classes/
-//put -r com/

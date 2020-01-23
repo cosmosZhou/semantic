@@ -37,7 +37,8 @@ public class State {
 	 * referred to in the white paper as the 'goto' structure. From a state it is
 	 * possible to go to other states, depending on the character passed.
 	 */
-	public Map<Character, State> success = new TreeMap<Character, State>();
+//	public Map<Character, State> success = new TreeMap<Character, State>();
+	public Map<Character, State> success = new HashMap<Character, State>();
 
 	/** if no matching states are found, the failure state will be returned */
 	public State failure = null;
@@ -91,8 +92,8 @@ public class State {
 
 	public List<Tuple> emits = null;
 
-	public Utility.LNodeShadow toShadowTree() {
-		Utility.LNodeShadow newNode = new Utility.LNodeShadow("");
+	public Utility.TextTreeNode toShadowTree() {
+		Utility.TextTreeNode newNode = new Utility.TextTreeNode("");
 		int x_length = success.size() / 2;
 		int y_length = success.size() - x_length;
 		char[] list = new char[success.size()];
@@ -104,11 +105,11 @@ public class State {
 
 		// tree node
 		if (x_length > 0) {
-			newNode.x = new Utility.LNodeShadow[x_length];
+			newNode.x = new Utility.TextTreeNode[x_length];
 			for (i = 0; i < x_length; ++i) {
 				char word = list[i];
 				State state = success.get(word);
-				Utility.LNodeShadow node = state.toShadowTree();
+				Utility.TextTreeNode node = state.toShadowTree();
 
 				newNode.x[i] = node;
 				node.value = String.valueOf(word);
@@ -124,11 +125,11 @@ public class State {
 		// allocate node for left child at next level in tree;
 
 		if (y_length > 0) {
-			newNode.y = new Utility.LNodeShadow[y_length];
+			newNode.y = new Utility.TextTreeNode[y_length];
 			for (i = x_length; i < success.size(); ++i) {
 				char word = list[i];
 				State state = success.get(word);
-				Utility.LNodeShadow node = state.toShadowTree();
+				Utility.TextTreeNode node = state.toShadowTree();
 
 				newNode.y[i - x_length] = node;
 				node.value = String.valueOf(word);
@@ -147,7 +148,7 @@ public class State {
 
 	@Override
 	public String toString() {
-		Utility.LNodeShadow root = this.toShadowTree();
+		Utility.TextTreeNode root = this.toShadowTree();
 		return root.toString();
 	}
 

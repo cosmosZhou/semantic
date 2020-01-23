@@ -41,7 +41,7 @@ import org.jblas.DoubleMatrix;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.util.Utility.Couplet;
-import com.util.Utility.LNodeShadow;
+import com.util.Utility.TextTreeNode;
 
 public class Utility {
 	public static void main(String[] args) throws Exception {
@@ -1057,22 +1057,22 @@ public class Utility {
 
 	static public String lineSeparator = "\n";
 
-	public static class LNodeShadow extends Couplet<LNodeShadow[], LNodeShadow[]> {
+	public static class TextTreeNode extends Couplet<TextTreeNode[], TextTreeNode[]> {
 		// objects hold a formatted label string and the level,column
 		// coordinates for a shadow tree node
 		public String value; // formatted node value
 		int i, j;
 
-		LNodeShadow() {
+		TextTreeNode() {
 		}
 
-		public LNodeShadow(String value) {
+		public TextTreeNode(String value) {
 			this.value = value;
 		}
 
-		static int max_width(LNodeShadow[] list) {
+		static int max_width(TextTreeNode[] list) {
 			int length = 0;
-			for (LNodeShadow x : list) {
+			for (TextTreeNode x : list) {
 				int width = x.max_width();
 				if (width > length) {
 					length = width;
@@ -1100,8 +1100,8 @@ public class Utility {
 			hierarchize(0, 0);
 		}
 
-		static void hierarchize(LNodeShadow list[], int level, int... column) {
-			for (LNodeShadow x : list) {
+		static void hierarchize(TextTreeNode list[], int level, int... column) {
+			for (TextTreeNode x : list) {
 				x.hierarchize(level, column);
 			}
 		}
@@ -1164,11 +1164,11 @@ public class Utility {
 			final int colWidth = max_width;
 
 			// use during the level order scan of the shadow tree
-			LNodeShadow currNode;
+			TextTreeNode currNode;
 			//
 			// store siblings of each nodeShadow object in a queue so that they
 			// are visited in order at the next level of the tree
-			Queue<LNodeShadow> q = new LinkedList<LNodeShadow>();
+			Queue<TextTreeNode> q = new LinkedList<TextTreeNode>();
 			//
 			// insert the root in the queue and set current level to 0
 			q.add(this);
@@ -1190,9 +1190,9 @@ public class Utility {
 				char ch;
 				if (currNode.x != null) {
 					assert currNode.x.length > 0;
-					for (LNodeShadow t : currNode.x)
+					for (TextTreeNode t : currNode.x)
 						q.add(t);
-					LNodeShadow head = currNode.x[0];
+					TextTreeNode head = currNode.x[0];
 					// the string is right-aligned / right-justified, that's why
 					// there a series of leading ' ';
 					int dif = colWidth - length(head.value);// for leading ' 's
@@ -1211,10 +1211,10 @@ public class Utility {
 
 				currCol = currNode.j;
 				if (currNode.y != null) {
-					for (LNodeShadow t : currNode.y)
+					for (TextTreeNode t : currNode.y)
 						q.add(t);
 
-					LNodeShadow last = currNode.y[currNode.y.length - 1];
+					TextTreeNode last = currNode.y[currNode.y.length - 1];
 					cout += Utility.toString((last.j - currCol) * colWidth, '_');
 
 					currCol = last.j;

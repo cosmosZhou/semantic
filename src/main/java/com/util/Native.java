@@ -1,8 +1,6 @@
 package com.util;
 
-import java.lang.reflect.Field;
-
-import org.apache.commons.lang.SystemUtils;
+import org.ahocorasick.trie.Emit;
 
 public class Native {
 	public native static void displayHelloWorld();
@@ -30,13 +28,20 @@ public class Native {
 
 	public native static double relu(double rcx);
 
+	public native static void initializeH5Model(String pwd);
+
+	public native static void initializeAhocorasickDictionary(String pwd);
+
+	public native static void ahocorasickTest();
+	
+	public native static Emit[] parseText(String text);
+	
 	static {
 		String LD_LIBRARY_PATH = System.getProperty("java.library.path");
 
 		System.out.println("java.library.path = " + LD_LIBRARY_PATH);
 
 		try {
-
 			System.loadLibrary("eigen");
 
 		} catch (Exception e) {
