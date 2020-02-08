@@ -1713,4 +1713,39 @@ public class Utility {
 		}
 	}
 
+	static public class CharArray implements Iterable<Character> {
+
+		CharArray(String str) {
+			this.str = str;
+		}
+
+		String str;
+
+		class CharIterator implements Iterator<Character> {
+			int i = -1;
+
+			@Override
+			public boolean hasNext() {
+				// TODO Auto-generated method stub
+				return ++i < str.length();
+			}
+
+			@Override
+			public Character next() {
+				// TODO Auto-generated method stub
+				return str.charAt(i);
+			}
+		}
+
+		@Override
+		public Iterator<Character> iterator() {
+			// TODO Auto-generated method stub
+			return new CharIterator();
+		}
+
+	}
+
+	public static CharArray toCharArray(String str) {
+		return new CharArray(str);
+	}
 }

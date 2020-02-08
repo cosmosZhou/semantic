@@ -341,8 +341,7 @@ public class Algorithm {
 
 		HashMap<String, Object> json = new HashMap<String, Object>();
 
-		Trie ahoCorasickNaive = new Trie();
-		ahoCorasickNaive.build(dictionaryMap);
+		Trie ahoCorasickNaive = new Trie(dictionaryMap);
 
 		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/text.txt").fetchContent();
 

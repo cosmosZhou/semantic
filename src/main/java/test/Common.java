@@ -16,9 +16,9 @@ import com.util.Utility;
  */
 public class Common {
 	static ArrayList<String> loadDictionary() throws IOException {
-		return loadDictionary("dictionary.txt");
+		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/dictionary.txt");
 	}
-	
+
 	static ArrayList<String> loadDictionary(String path) throws IOException {
 		ArrayList<String> dictionary = new ArrayList<String>();
 		new Utility.Text(path).collect(dictionary);
@@ -54,10 +54,10 @@ public class Common {
 		return result.size();
 	}
 
-	static TreeMap<String, String> dictionaryMap;
-	static String text;
+	public static TreeMap<String, String> dictionaryMap;
+	public static String text;
 	static boolean debug = false;
-	
+
 	static {
 		dictionaryMap = new TreeMap<String, String>();
 		try {
@@ -65,9 +65,9 @@ public class Common {
 				dictionaryMap.put(word, String.format("[%s]", word));
 			}
 //			dictionaryMap.remove(wordsToBeDeleted);
-			
+
 			System.out.println("dictionary.size() = " + dictionaryMap.size());
-			text = loadText("text.txt");
+			text = loadText(Utility.corpusDirectory() + "ahocorasick/text.txt");
 			if (dictionaryMap.size() <= 10) {
 				debug = true;
 			}
@@ -106,20 +106,15 @@ public class Common {
 	}
 
 	static Trie naiveConstruct() {
-		Trie ahoCorasickNaive = new Trie();
-
-		ahoCorasickNaive.build(dictionaryMap);
-
-		return ahoCorasickNaive;
+		return new Trie(dictionaryMap);
 	}
 
 	public static int countNaiveConstruct() throws Exception {
 
-		Trie ahoCorasickNaive = new Trie();
+		Trie ahoCorasickNaive = new Trie(dictionaryMap);
 
 //		System.out.println(ahoCorasickNaive.rootState);
 
-		ahoCorasickNaive.build(dictionaryMap);
 		if (debug) {
 			System.out.println("building ahocorasic all at once:");
 			System.out.println(ahoCorasickNaive.rootState);
@@ -141,8 +136,7 @@ public class Common {
 
 	static Trie naiveDelete(String wordsToBeDeleted) throws Exception {
 
-		Trie ahoCorasickNaive = new Trie();
-		ahoCorasickNaive.build(dictionaryMap);
+		Trie ahoCorasickNaive = new Trie(dictionaryMap);
 
 		if (debug) {
 			System.out.println("before deletion:");
@@ -152,7 +146,7 @@ public class Common {
 		ahoCorasickNaive.erase(wordsToBeDeleted);
 		if (debug)
 			System.out.println(ahoCorasickNaive.rootState);
-		
+
 		System.out.println("construction finished");
 		return ahoCorasickNaive;
 	}

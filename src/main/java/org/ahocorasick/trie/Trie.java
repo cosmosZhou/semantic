@@ -134,7 +134,8 @@ public class Trie {
 		deleteFailureStates(currentState, character, keyword, numOfDeletion);
 	}
 
-	public void build(Map<String, String> map) {
+	public Trie(Map<String, String> map) {
+		this();
 		for (Entry<String, String> entry : map.entrySet()) {
 			this.addKeyword(entry.getKey(), entry.getValue());
 		}
