@@ -118,7 +118,6 @@ public class State {
 				}
 				if (state.emits != null) {
 					node.value += state.emits.size() > 1 ? String.format("*%d", state.emits.size()) : '+';
-//					node.value += state.emits.size() > 1 ? '+' : '*';
 				}
 			}
 		}
@@ -138,7 +137,6 @@ public class State {
 				}
 				if (state.emits != null) {
 					node.value += state.emits.size() > 1 ? String.format("*%d", state.emits.size()) : '+';
-//					node.value += String.format("{%d}", state.emits.size());
 				}
 			}
 		}

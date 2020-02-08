@@ -331,7 +331,7 @@ public class Algorithm {
 	@Path("ahocorasick/test")
 	@Produces("text/plain;charset=utf-8")
 	public String ahocorasick_test() throws Exception {
-		String path2Dictionary = Utility.workingDirectory + "corpus/ahocorasick/en/dictionary.txt";
+		String path2Dictionary = Utility.workingDirectory + "corpus/ahocorasick/dictionary.txt";
 
 		TreeMap<String, String> dictionaryMap = new TreeMap<String, String>();
 
@@ -344,39 +344,52 @@ public class Algorithm {
 		Trie ahoCorasickNaive = new Trie();
 		ahoCorasickNaive.build(dictionaryMap);
 
-		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/en/text.txt").fetchContent();
+		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/text.txt").fetchContent();
 
-		long start = System.currentTimeMillis();
-		int count = ahoCorasickNaive.parseText(text).size();
-		long cost = System.currentTimeMillis() - start;
+		System.out.println("text.length() = " + text.length());
+		long countNative;
+		{
+			Native.initializeAhocorasickDictionary(path2Dictionary);
+			long start = System.currentTimeMillis();
+			countNative = Native.parseText(text).length;
+			long cost = System.currentTimeMillis() - start;
 
-		HashMap<String, Object> jsonNaive = new HashMap<String, Object>();
-		jsonNaive.put("count", count);
-		jsonNaive.put("cost", cost);
-		json.put("naiveImplementation", jsonNaive);
+			HashMap<String, Object> jsonNative = new HashMap<String, Object>();
+			jsonNative.put("count", countNative);
+			jsonNative.put("cost", cost);
+			json.put("nativeImplementation", jsonNative);
+		}
 
-		Native.initializeAhocorasickDictionary(path2Dictionary);
-		start = System.currentTimeMillis();
-		count = Native.parseText(text).length;
-		cost = System.currentTimeMillis() - start;
+		int countNaive;
+		{
+			long start = System.currentTimeMillis();
+			countNaive = ahoCorasickNaive.parseText(text).size();
+			long cost = System.currentTimeMillis() - start;
 
-		HashMap<String, Object> jsonNative = new HashMap<String, Object>();
-		jsonNative.put("count", count);
-		jsonNative.put("cost", cost);
-		json.put("nativeImplementation", jsonNative);
+			HashMap<String, Object> jsonNaive = new HashMap<String, Object>();
+			jsonNaive.put("count", countNaive);
+			jsonNaive.put("cost", cost);
+			json.put("naiveImplementation", jsonNaive);
+			System.out.println("naive cost time       = " + cost);
+		}
+		long countDoubleArray;
+		{
+			AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>();
+			ahoCorasickDoubleArrayTrie.build(dictionaryMap);
 
-		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>();
-		ahoCorasickDoubleArrayTrie.build(dictionaryMap);
+			long start = System.currentTimeMillis();
+			countDoubleArray = ahoCorasickDoubleArrayTrie.parseText(text).size();
+			long cost = System.currentTimeMillis() - start;
 
-		start = System.currentTimeMillis();
-		count = ahoCorasickDoubleArrayTrie.parseText(text).size();
-		cost = System.currentTimeMillis() - start;
-
-		HashMap<String, Object> jsonDoubleArray = new HashMap<String, Object>();
-		jsonDoubleArray.put("count", count);
-		jsonDoubleArray.put("cost", cost);
-		json.put("DoubleArrayImplementation", jsonDoubleArray);
-
+			HashMap<String, Object> jsonDoubleArray = new HashMap<String, Object>();
+			jsonDoubleArray.put("count", countDoubleArray);
+			jsonDoubleArray.put("cost", cost);
+			json.put("DoubleArrayImplementation", jsonDoubleArray);
+			System.out.println("DoubleArray cost time = " + cost);
+		}
+		System.out.println("count Naive       = " + countNaive);
+		System.out.println("count Native      = " + countNative);
+		System.out.println("count DoubleArray = " + countDoubleArray);
 		return Utility.jsonify(json);
 	}
 

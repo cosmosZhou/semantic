@@ -369,13 +369,13 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @return
 	 */
 	private int getState(int currentState, char character) {
-		int newCurrentState = transitionWithRoot(currentState, character); // 先按success跳转
-		while (newCurrentState == -1) // 跳转失败的话，按failure跳转
-		{
+		for (;;) {
+			int newCurrentState = nextState(currentState, character); // 先按success跳转
+			if (newCurrentState != -1)
+				return newCurrentState;
+			// 跳转失败的话，按failure跳转
 			currentState = fail[currentState];
-			newCurrentState = transitionWithRoot(currentState, character);
 		}
-		return newCurrentState;
 	}
 
 	/**
@@ -423,13 +423,13 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param c
 	 * @return
 	 */
-	protected int transitionWithRoot(int nodePos, char c) {
+	protected int nextState(int nodePos, char c) {
 		int b = base[nodePos];
 		int p;
 
 		p = b + c + 1;
-		if (b != check[p]) {
-			if (nodePos == 0)
+		if (b != check[p]) {// if p is not a valid pointer
+			if (nodePos == 0) //depth == 0
 				return 0;
 			return -1;
 		}
@@ -918,4 +918,14 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 			check = ncheck;
 		}
 	}
+
+	public void update(String keyword, String value) {
+//		State currentState = this.rootState;
+//		for (Character character : keyword.toCharArray()) {
+//			currentState = currentState.addState(character);
+//		}
+//		currentState.addEmit(index);
+//		l[index] = keyword.length();
+	}
+
 }

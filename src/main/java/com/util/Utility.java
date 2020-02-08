@@ -22,7 +22,9 @@ import java.lang.reflect.Array;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.Vector;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -40,8 +43,6 @@ import org.jblas.DoubleMatrix;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.util.Utility.Couplet;
-import com.util.Utility.TextTreeNode;
 
 public class Utility {
 	public static void main(String[] args) throws Exception {
@@ -335,6 +336,7 @@ public class Utility {
 		}
 	}
 
+	@SuppressWarnings("hiding")
 	static public abstract class Reader<String> implements Iterator<String>, Iterable<String> {
 		public void remove() {
 			throw new IllegalStateException("This Iterator<Instance> does not support remove().");
@@ -577,6 +579,7 @@ public class Utility {
 	public static final String ChinesePunctuation = "，。：；！？（）「」『』【】～‘’′”“《》、…．·";
 	public static final String sPunctuation = EnglishPunctuation + ChinesePunctuation;
 
+	@SuppressWarnings("unchecked")
 	public static <_Ty> _Ty[] toArray(Collection<_Ty> arr) {
 		if (arr.isEmpty()) {
 			return null;
@@ -597,6 +600,34 @@ public class Utility {
 			a[i++] = s;
 		}
 		return a;
+	}
+
+	public static int[] toArray(List<Integer> list) {
+		if (list.isEmpty()) {
+			return null;
+		}
+
+		int arr[] = new int[list.size()];
+
+		int i = 0;
+		for (int s : list) {
+			arr[i++] = s;
+		}
+		return arr;
+	}
+
+	public static int[] toArray(Set<Integer> list) {
+		if (list.isEmpty()) {
+			return null;
+		}
+
+		int arr[] = new int[list.size()];
+
+		int i = 0;
+		for (int s : list) {
+			arr[i++] = s;
+		}
+		return arr;
 	}
 
 	public static boolean equals(String[] seg, String[] segSub, int I) {
@@ -636,6 +667,7 @@ public class Utility {
 		return true;
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	static public boolean equals(Object a, Object b) {
 		if (a == null)
 			return b == null;
@@ -735,6 +767,21 @@ public class Utility {
 		return true;
 	}
 
+	static public boolean equals(boolean a[], boolean b[]) {
+		if (a == null)
+			return b == null;
+		if (a.length != b.length) {
+			return false;
+		}
+
+		for (int i = 0; i < b.length; ++i) {
+			if (a[i] != b[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	static public boolean equals(double a[], double b[]) {
 		if (a == null)
 			return b == null;
@@ -800,10 +847,12 @@ public class Utility {
 		return new ObjectMapper().readValue(json, valueType);
 	}
 
+	@SuppressWarnings({ "hiding", "unchecked" })
 	static public <String> String[] tuple(String... arr) {
 		return arr;
 	}
 
+	@SuppressWarnings({ "hiding", "unchecked" })
 	static public <String> List<String> list(String... arr) {
 		ArrayList<String> list = new ArrayList<String>(arr.length);
 		for (int i = 0; i < arr.length; i++) {
@@ -940,6 +989,187 @@ public class Utility {
 		return toString(value, ", ", null);
 	}
 
+	public static String toString(int[] value, String delimiter) {
+		return toString(value, delimiter, null, maxPrintability);
+	}
+
+	public static String toString(int[] value, String delimiter, String brackets, int maxPrintability) {
+		if (value == null)
+			return null;
+
+		int length = value.length;
+		if (length == 0)
+			return brackets == null ? "" : brackets;
+		if (maxPrintability <= 0)
+			maxPrintability = Integer.MAX_VALUE;
+		if (length > maxPrintability) {
+			length = maxPrintability;
+		}
+
+		String s = "";
+		if (brackets != null && brackets.length() == 2)
+			s += brackets.charAt(0);
+		int i = 0;
+
+		for (i = 0; i < length; ++i) {
+			int t = value[i];
+			s += t;
+			if (i == length - 1)
+				break;
+
+			if (delimiter != null)
+				s += delimiter;
+			else
+				s += " ";
+
+		}
+
+		if (value.length > maxPrintability)
+			s += "... (length = " + value.length + ")";
+		if (brackets != null && brackets.length() == 2)
+			s += brackets.charAt(1);
+		return s;
+	}
+
+	public static String toString(int[] value, String delimiter, String brackets) {
+		if (value == null)
+			return null;
+
+		int length = value.length;
+		if (length == 0)
+			return brackets == null ? "" : brackets;
+		if (maxPrintability <= 0)
+			maxPrintability = Integer.MAX_VALUE;
+		if (length > maxPrintability) {
+			length = maxPrintability;
+		}
+
+		String s = "";
+		if (brackets != null && brackets.length() == 2)
+			s += brackets.charAt(0);
+		int i = 0;
+
+		for (i = 0; i < length; ++i) {
+			int t = value[i];
+			s += t;
+			if (i == length - 1)
+				break;
+
+			if (delimiter != null)
+				s += delimiter;
+			else
+				s += " ";
+
+		}
+
+		if (value.length > maxPrintability)
+			s += "... (length = " + value.length + ")";
+		if (brackets != null && brackets.length() == 2)
+			s += brackets.charAt(1);
+		return s;
+	}
+
+	public static String toString(double[] value, String delimiter, String brackets) {
+		if (value == null)
+			return null;
+
+		int length = value.length;
+		if (length == 0)
+			return brackets == null ? "" : brackets;
+		if (maxPrintability <= 0)
+			maxPrintability = Integer.MAX_VALUE;
+		if (length > maxPrintability) {
+			length = maxPrintability;
+		}
+
+		String s = "";
+		if (brackets != null && brackets.length() == 2)
+			s += brackets.charAt(0);
+		int i = 0;
+
+		for (i = 0; i < length; ++i) {
+			double t = value[i];
+			s += t;
+			if (i == length - 1)
+				break;
+
+			if (delimiter != null)
+				s += delimiter;
+			else
+				s += " ";
+
+		}
+
+		if (value.length > maxPrintability)
+			s += "... (length = " + value.length + ")";
+		if (brackets != null && brackets.length() == 2)
+			s += brackets.charAt(1);
+		return s;
+	}
+
+	public static String toString(int[] value) {
+		return toString(value, ", ", "[]", maxPrintability);
+	}
+
+	public static String toString(byte[] value) {
+		if (value == null) {
+			return null;
+		}
+		if (value.length == 0) {
+			return "[]";
+		}
+
+		String s = "[";
+		int length = value.length;
+		if (maxPrintability <= 0)
+			maxPrintability = Integer.MAX_VALUE;
+		if (value.length > maxPrintability) {
+			length = maxPrintability;
+		}
+
+		for (int i = 0; i < length; ++i) {
+			s += value[i];
+			s += ", ";
+		}
+
+		if (value.length > maxPrintability)
+			return s += "... (length = " + value.length + ")]";
+		else
+			return s.substring(0, s.length() - 2) + "]";
+	}
+
+	public static String toString(float[] value) {
+		if (value == null) {
+			return null;
+		}
+		if (value.length == 0) {
+			return "[]";
+		}
+
+		String s = "[";
+
+		int length = value.length;
+		if (maxPrintability <= 0)
+			maxPrintability = Integer.MAX_VALUE;
+		if (value.length > maxPrintability) {
+			length = maxPrintability;
+		}
+
+		for (int i = 0; i < length; ++i) {
+			s += value[i];
+			s += ", ";
+		}
+
+		if (value.length > maxPrintability)
+			return s += "... (length = " + value.length + ")]";
+		else
+			return s.substring(0, s.length() - 2) + "]";
+	}
+
+	public static String toString(double[] value) {
+		return toString(value, ", ", "[]");
+	}
+
 	static public class Couplet<_Kty, _Ty> implements Serializable {
 		/**
 		 * 
@@ -1033,7 +1263,7 @@ public class Utility {
 
 	}
 
-	public static int length(String value) {
+	public static int byte_length(String value) {
 		int length = 0;
 		for (int i = 0; i < value.length(); ++i) {
 			char ch = value.charAt(i);
@@ -1057,14 +1287,13 @@ public class Utility {
 
 	static public String lineSeparator = "\n";
 
+	@SuppressWarnings("serial")
 	public static class TextTreeNode extends Couplet<TextTreeNode[], TextTreeNode[]> {
 		// objects hold a formatted label string and the level,column
 		// coordinates for a shadow tree node
 		public String value; // formatted node value
 		int i, j;
-
-		TextTreeNode() {
-		}
+		static final boolean debug = false;
 
 		public TextTreeNode(String value) {
 			this.value = value;
@@ -1082,7 +1311,7 @@ public class Utility {
 		}
 
 		public int max_width() {
-			int width = length(value);
+			int width = byte_length(value);
 			if (x != null) {
 				int width_x = max_width(x);
 				if (width_x > width)
@@ -1106,43 +1335,182 @@ public class Utility {
 			}
 		}
 
-		// static int size(List<LNodeShadow> list){
-		// int size = 0;
-		// for (LNodeShadow x : list){
-		// size += x.size();
-		// }
-		// return size;
-		// }
-		//
-		// int size(){
-		// int size = 1;
-		// if (x != null)
-		// size += size(x);
-		// if (y != null)
-		// size += size(y);
-		// return size;
-		// }
-		//
-		// static int sizeInbeween(List<LNodeShadow> list){
-		// int size = list.size();
-		// if (size == 1)
-		// return size;
-		// int i = 0;
-		// size += size(list.get(i).y);
-		//
-		// for (++i; i < list.size() - 1; ++i){
-		// size += list.get(i).size();
-		// }
-		// size += size(list.get(i).x);
-		// return size;
-		// }
-		//
+		TextTreeNode right_hand() {
+			if (y != null)
+				return Utility.last(y);
+			return this;
+		}
+
+		TextTreeNode left_hand() {
+			if (x != null)
+				return x[0];
+			return this;
+		}
+
+		TextTreeNode last_kinder() {
+			if (y != null)
+				return Utility.last(y);
+			if (x != null)
+				return Utility.last(x);
+			return null;
+		}
+
+		TextTreeNode left_most() {
+			if (x != null)
+				return x[0].left_most();
+			return this;
+		}
+
+		TextTreeNode first_kinder() {
+			if (x != null)
+				return x[0];
+			if (y != null)
+				return y[0];
+			return null;
+		}
+
+		void offset(int dj) {
+			this.j += dj;
+			if (debug)
+				this.value = String.valueOf(j);
+			if (x != null)
+				offset(x, dj);
+			if (y != null)
+				offset(y, dj);
+		}
+
+		static void offset(TextTreeNode x[], int dj) {
+			for (TextTreeNode node : x) {
+				node.offset(dj);
+			}
+		}
+
+		void shrink(TextTreeNode x[]) {
+			if (x.length <= 1)
+				return;
+			TextTreeNode curr, prev;
+
+			prev = x[0];
+			for (int i = 1; i < x.length; i++) {
+				curr = x[i];
+				int offset = shift(prev, curr);
+				if (offset > 0)
+					x[i].offset(-offset);
+
+				prev = x[i];
+			}
+		}
+
+		static int size(TextTreeNode[] list) {
+			int size = 0;
+			for (TextTreeNode x : list) {
+				size += x.size();
+			}
+			return size;
+		}
+
+		int size() {
+			int size = 1;
+			if (x != null)
+				size += size(x);
+			if (y != null)
+				size += size(y);
+			return size;
+		}
+
+		static int shift(TextTreeNode prev, TextTreeNode curr) {
+			int offset = curr.left_hand().j - prev.right_hand().j;
+
+			do {
+				prev = prev.last_kinder();
+				curr = curr.first_kinder();
+				if (prev == null || curr == null)
+					break;
+				offset = Math.min(offset, curr.left_hand().j - prev.right_hand().j);
+			} while (true);
+			--offset;
+			return offset;
+		}
+
+		void shrink(TextTreeNode parent) {
+			if (x != null)
+				for (TextTreeNode node : this.x) {
+					node.shrink(this);
+				}
+			if (y != null)
+				for (TextTreeNode node : this.y) {
+					node.shrink(this);
+				}
+
+			if (x != null) {
+				shrink(x);
+				if (y != null) {
+
+					TextTreeNode prev = Utility.last(x);
+					TextTreeNode curr = y[0];
+					int offset = Math.min(this.j - prev.j - 1, shift(prev, curr));
+
+					if (offset > 0) {
+						curr.offset(-offset);
+						this.j -= offset;
+						if (debug)
+							this.value = String.valueOf(this.j);
+					}
+
+					shrink(y);
+
+				}
+			} else {
+				if (y != null) {
+					shrink(y);
+					int diff = y[0].j - this.j;
+					if (diff > 1) {
+						TextTreeNode left_most = y[0].left_most();
+						int left_most_j = left_most.j;
+						if (left_most_j > this.j) {
+							diff = this.j - left_most_j;
+							offset(y, diff);
+							if (parent != null) {
+								if (parent.hasLeftKinder(this)) {
+									parent.j += diff;
+									if (debug)
+										parent.value = String.valueOf(parent.j);
+								}
+								offset(parent.rightSiblings(this), diff);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		boolean hasLeftKinder(TextTreeNode kinder) {
+			return x != null && Utility.indexOf(x, kinder) >= 0;
+		}
+
+		TextTreeNode[] rightSiblings(TextTreeNode kinder) {
+			if (x != null) {
+				int index = Utility.indexOf(x, kinder);
+				if (index >= 0) {
+					if (y != null)
+						return Utility.copier(Arrays.copyOfRange(x, index + 1, x.length), y);
+					return Arrays.copyOfRange(x, index + 1, x.length);
+				}
+			}
+			int index = Utility.indexOf(y, kinder);
+			assert index >= 0;
+			return Arrays.copyOfRange(y, index + 1, y.length);
+
+		}
+
 		void hierarchize(int level, int... column) {
 			if (x != null)
 				hierarchize(x, level + 1, column);
 			// allocate node for left child at next level in tree; attach node
 			i = level;
 			j = column[0]++; // update column to next cell in the table
+			if (debug)
+				value = String.valueOf(j);
 
 			if (y != null)
 				hierarchize(y, level + 1, column);
@@ -1150,16 +1518,18 @@ public class Utility {
 
 		// the font type should be simsun;
 		public String toString() {
-			return toString(max_width());
+			return toString(max_width(), false);
 		}
 
-		public String toString(int max_width) {
-			String cout = "";
+		public String toString(int max_width, boolean shrink) {
+			StringBuffer cout = new StringBuffer();
 			int currLevel = 0;
 			int currCol = 0;
 
 			// build the shadow tree
 			hierarchize();
+			if (shrink)
+				this.shrink((TextTreeNode) null);
 			// final int colWidth = Math.max(max_width, max_width()) + 1;
 			final int colWidth = max_width;
 
@@ -1175,7 +1545,7 @@ public class Utility {
 			//
 			// continue the iterative process until the queue
 			// is empty
-			while (q.size() != 0) {
+			while (!q.isEmpty()) {
 				// delete front node from queue and make it the
 				// current node
 				currNode = q.poll();
@@ -1184,7 +1554,7 @@ public class Utility {
 					// if level changes, output a newline
 					currLevel = currNode.i;
 					currCol = 0;
-					cout += lineSeparator;
+					cout.append(lineSeparator);
 				}
 
 				char ch;
@@ -1195,19 +1565,29 @@ public class Utility {
 					TextTreeNode head = currNode.x[0];
 					// the string is right-aligned / right-justified, that's why
 					// there a series of leading ' ';
-					int dif = colWidth - length(head.value);// for leading ' 's
-					cout += Utility.toString((head.j - currCol) * colWidth + dif, ' ');
-					cout += Utility.toString((currNode.j - head.j) * colWidth - dif, '_');
+					int dif = colWidth - byte_length(head.value);// for leading ' 's
+
+//					if ((head.j - currCol) * colWidth + dif >= 0)
+					cout.append(Utility.toString((head.j - currCol) * colWidth + dif, ' '));
+//					if ((currNode.j - head.j) * colWidth - dif >= 0)
+					cout.append(Utility.toString((currNode.j - head.j) * colWidth - dif, '_'));
+//					else {
+//						System.out.println("error occurs!");
+//					}
 
 					ch = '_';
 				} else {
-					cout += Utility.toString((currNode.j - currCol) * colWidth, ' ');
+//					if (currNode.j >= currCol)
+					cout.append(Utility.toString((currNode.j - currCol) * colWidth, ' '));
+//					else {
+//						System.out.println("error occurs!");
+//					}
 
 					ch = ' ';
 				}
 
 				// for leading white spaces;
-				cout += Utility.toString(colWidth - length(currNode.value), ch) + currNode.value;
+				cout.append(Utility.toString(colWidth - byte_length(currNode.value), ch) + currNode.value);
 
 				currCol = currNode.j;
 				if (currNode.y != null) {
@@ -1215,16 +1595,16 @@ public class Utility {
 						q.add(t);
 
 					TextTreeNode last = currNode.y[currNode.y.length - 1];
-					cout += Utility.toString((last.j - currCol) * colWidth, '_');
+					cout.append(Utility.toString((last.j - currCol) * colWidth, '_'));
 
 					currCol = last.j;
 				}
 
 				++currCol;
 			}
-			cout += lineSeparator;
+			cout.append(lineSeparator);
 
-			return cout;
+			return cout.toString();
 		}
 	}
 
@@ -1242,6 +1622,94 @@ public class Utility {
 			ps.close();
 			System.setOut(out);
 
+		}
+	}
+
+	public static char last(String str) {
+		return str.charAt(str.length() - 1);
+	}
+
+	public static <T> T last(T[] str) {
+		return str[str.length - 1];
+	}
+
+	public static <T> T last(List<T> str) {
+		return str.get(str.size() - 1);
+	}
+
+	static public <_Ty> _Ty[] copier(_Ty[] adverb, _Ty element) {
+		@SuppressWarnings("unchecked")
+		_Ty[] adverbNew = (_Ty[]) Array.newInstance(adverb.getClass().getComponentType(), adverb.length + 1);
+		System.arraycopy(adverb, 0, adverbNew, 0, adverb.length);
+		adverbNew[adverb.length] = element;
+		return adverbNew;
+	}
+
+	@SuppressWarnings("unchecked")
+	static public <_Ty> _Ty[] copier(_Ty[] a, _Ty[] b) {
+		_Ty[] c = (_Ty[]) Array.newInstance(a.getClass().getComponentType(), a.length + b.length);
+		System.arraycopy(a, 0, c, 0, a.length);
+		System.arraycopy(b, 0, c, a.length, b.length);
+		return c;
+	}
+
+	@SuppressWarnings("unchecked")
+	static public <_Ty> _Ty[] remove_null(_Ty[] a) {
+		int length = a.length;
+		for (_Ty e : a) {
+			if (e == null) {
+				--length;
+			}
+		}
+		if (length == 0)
+			return null;
+		if (length == a.length)
+			return a;
+
+		_Ty[] arr = (_Ty[]) Array.newInstance(a.getClass().getComponentType(), length);
+		int i = 0;
+		for (_Ty e : a) {
+			if (e != null) {
+				arr[i++] = e;
+			}
+		}
+
+		return arr;
+	}
+
+	// post-condition: return a value in the range of [0, length]; the value
+	// returned is no less than _Val;
+	public static <_Ty> int binary_search(Vector<_Ty> arr, _Ty value, Comparator<_Ty> comparator) {
+		int begin = 0, end = arr.size();
+		for (;;) {
+			int mid = (begin + end) >> 1;
+			if (begin == end)
+				return mid;
+			int ret = comparator.compare(arr.get(mid), value);
+			if (ret < 0)
+				begin = mid + 1;
+			else if (ret > 0)
+				end = mid;
+			else
+				return mid;
+		}
+	}
+
+	// post-condition: return a value in the range of [0, length]; the value
+	// returned is no less than _Val;
+	public static <_Ty> int binary_search(_Ty[] arr, _Ty value, Comparator<_Ty> comparator) {
+		int begin = 0, end = arr.length;
+		for (;;) {
+			int mid = (begin + end) >> 1;
+			if (begin == end)
+				return mid;
+			int ret = comparator.compare(arr[mid], value);
+			if (ret < 0)
+				begin = mid + 1;
+			else if (ret > 0)
+				end = mid;
+			else
+				return mid;
 		}
 	}
 
