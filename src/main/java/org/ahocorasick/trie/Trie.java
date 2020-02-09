@@ -1,12 +1,5 @@
 package org.ahocorasick.trie;
 
-import org.ahocorasick.interval.IntervalTree;
-import org.ahocorasick.interval.Intervalable;
-import org.ahocorasick.trie.State.Tuple;
-
-import com.util.Utility;
-
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -14,8 +7,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Stack;
-import java.util.TreeMap;
 import java.util.concurrent.LinkedBlockingDeque;
+
+import org.ahocorasick.interval.IntervalTree;
+import org.ahocorasick.interval.Intervalable;
+import org.ahocorasick.trie.State.Tuple;
 
 /**
  *
@@ -28,11 +24,11 @@ public class Trie {
 
 	private TrieConfig trieConfig;
 
-	public State rootState;
+	public State root;
 
 	public Trie(TrieConfig trieConfig) {
 		this.trieConfig = trieConfig;
-		this.rootState = new State();
+		this.root = new State();
 	}
 
 	public Trie() {
@@ -58,7 +54,7 @@ public class Trie {
 		if (keyword == null || keyword.length() == 0) {
 			return;
 		}
-		State currentState = this.rootState;
+		State currentState = this.root;
 		for (char character : keyword.toCharArray()) {
 			currentState = currentState.addState(character);
 		}
@@ -75,7 +71,7 @@ public class Trie {
 
 		ArrayList<State.Transition> start = new ArrayList<State.Transition>();
 
-		State currentState = this.rootState;
+		State currentState = this.root;
 		for (int i = 0; i < keyword.length(); ++i) {
 			char character = keyword.charAt(i);
 
@@ -94,7 +90,7 @@ public class Trie {
 //		if (keyword.equals("意思"))
 //			System.out.printf("delete %s\n", keyword);
 
-		State currentState = this.rootState;
+		State currentState = this.root;
 		Stack<State> parent = new Stack<State>();
 		for (int i = 0; i < keyword.length(); ++i) {
 			char character = keyword.charAt(i);
@@ -175,7 +171,7 @@ public class Trie {
 	public Collection<Emit> parseText(String text) {
 
 		int position = 0;
-		State currentState = this.rootState;
+		State currentState = this.root;
 		List<Emit> collectedEmits = new ArrayList<Emit>();
 		for (char character : text.toCharArray()) {
 			if (trieConfig.isCaseInsensitive()) {
@@ -226,8 +222,8 @@ public class Trie {
 		Queue<State> queue = new LinkedBlockingDeque<State>();
 
 		// First, set the fail state of all depth 1 states to the root state
-		for (State depthOneState : rootState.getStates()) {
-			depthOneState.failure = rootState;
+		for (State depthOneState : root.getStates()) {
+			depthOneState.failure = root;
 			queue.add(depthOneState);
 		}
 
@@ -261,7 +257,7 @@ public class Trie {
 			}
 		}
 
-		State rootState = this.rootState;
+		State rootState = this.root;
 
 		if (keywordHead != null) {
 			list = keywordHead.parent.locate_state(keywordHead.character);
@@ -289,7 +285,7 @@ public class Trie {
 
 	void deleteFailureStates(State parent, char character, String keyword, int numOfDeletion) {
 		int char_length = keyword.length();
-		State rootState = this.rootState;
+		State rootState = this.root;
 		List<State> list;
 		if (parent.depth == 0) {
 			list = parent.locate_state(character);

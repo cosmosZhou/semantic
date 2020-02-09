@@ -21,48 +21,70 @@
 package com.hankcs.algorithm;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+import org.ahocorasick.trie.Trie;
+
+import com.util.KeyGenerator;
+import com.util.Utility;
+
+import test.Common;
 
 /**
  * An implementation of Aho Corasick algorithm based on Double Array Trie
  *
  * @author hankcs
  */
-public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
-	/**
-	 * check array of the Double Array Trie structure
-	 */
-	protected int[] check;
-	/**
-	 * base array of the Double Array Trie structure
-	 */
-	protected int[] base;
-	/**
-	 * fail table of the Aho Corasick automata
-	 */
-	protected int[] fail;
-	/**
-	 * output table of the Aho Corasick automata
-	 */
-	protected int[][] output;
+public class AhoCorasickDoubleArrayTrie<V> {
+
+	public static class Node {
+		int base;
+		int check;
+
+		/**
+		 * output table of the Aho Corasick automata
+		 */
+		int[] output;
+
+		/**
+		 * fail table of the Aho Corasick automata
+		 */
+		int failure;
+
+		void clear() {
+			base = check = 0;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return root.toString();
+	}
+
+	Node[] node;
+
 	/**
 	 * outer value array
 	 */
-	protected V[] v;
+	V[] value;
 
 	/**
 	 * the length of every key
 	 */
-	protected int[] l;
-
-	/**
-	 * the size of base and check array
-	 */
-	protected int size;
+	int[] char_length;
 
 	/**
 	 * Parse text
@@ -94,10 +116,10 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		int currentState = 0;
 		for (int i = 0; i < text.length(); ++i) {
 			currentState = getState(currentState, text.charAt(i));
-			int[] hitArray = output[currentState];
+			int[] hitArray = node[currentState].output;
 			if (hitArray != null) {
 				for (int hit : hitArray) {
-					processor.hit(position - l[hit], position, v[hit]);
+					processor.hit(position - char_length[hit], position, value[hit]);
 				}
 			}
 			++position;
@@ -115,10 +137,10 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		for (int i = 0; i < text.length(); i++) {
 			final int position = i + 1;
 			currentState = getState(currentState, text.charAt(i));
-			int[] hitArray = output[currentState];
+			int[] hitArray = node[currentState].output;
 			if (hitArray != null) {
 				for (int hit : hitArray) {
-					boolean proceed = processor.hit(position - l[hit], position, v[hit]);
+					boolean proceed = processor.hit(position - char_length[hit], position, value[hit]);
 					if (!proceed) {
 						return;
 					}
@@ -138,10 +160,10 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		int currentState = 0;
 		for (char c : text) {
 			currentState = getState(currentState, c);
-			int[] hitArray = output[currentState];
+			int[] hitArray = node[currentState].output;
 			if (hitArray != null) {
 				for (int hit : hitArray) {
-					processor.hit(position - l[hit], position, v[hit]);
+					processor.hit(position - char_length[hit], position, value[hit]);
 				}
 			}
 			++position;
@@ -159,10 +181,10 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		int currentState = 0;
 		for (char c : text) {
 			currentState = getState(currentState, c);
-			int[] hitArray = output[currentState];
+			int[] hitArray = node[currentState].output;
 			if (hitArray != null) {
 				for (int hit : hitArray) {
-					processor.hit(position - l[hit], position, v[hit], hit);
+					processor.hit(position - char_length[hit], position, value[hit], hit);
 				}
 			}
 			++position;
@@ -179,7 +201,7 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		int currentState = 0;
 		for (int i = 0; i < text.length(); ++i) {
 			currentState = getState(currentState, text.charAt(i));
-			int[] hitArray = output[currentState];
+			int[] hitArray = node[currentState].output;
 			if (hitArray != null) {
 				return true;
 			}
@@ -198,45 +220,14 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		int currentState = 0;
 		for (int i = 0; i < text.length(); ++i) {
 			currentState = getState(currentState, text.charAt(i));
-			int[] hitArray = output[currentState];
+			int[] hitArray = node[currentState].output;
 			if (hitArray != null) {
 				int hitIndex = hitArray[0];
-				return new Hit<V>(position - l[hitIndex], position, v[hitIndex]);
+				return new Hit<V>(position - char_length[hitIndex], position, value[hitIndex]);
 			}
 			++position;
 		}
 		return null;
-	}
-
-	/**
-	 * Save
-	 *
-	 * @param out An ObjectOutputStream object
-	 * @throws IOException Some IOException
-	 */
-	public void save(ObjectOutputStream out) throws IOException {
-		out.writeObject(base);
-		out.writeObject(check);
-		out.writeObject(fail);
-		out.writeObject(output);
-		out.writeObject(l);
-		out.writeObject(v);
-	}
-
-	/**
-	 * Load data from [ObjectInputStream]
-	 *
-	 * @param in An ObjectInputStream object
-	 * @throws IOException            If can't read the file from path
-	 * @throws ClassNotFoundException If the class doesn't exist or matched
-	 */
-	public void load(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		base = (int[]) in.readObject();
-		check = (int[]) in.readObject();
-		fail = (int[]) in.readObject();
-		output = (int[][]) in.readObject();
-		l = (int[]) in.readObject();
-		v = (V[]) in.readObject();
 	}
 
 	/**
@@ -248,7 +239,7 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	public V get(String key) {
 		int index = exactMatchSearch(key);
 		if (index >= 0) {
-			return v[index];
+			return value[index];
 		}
 
 		return null;
@@ -264,7 +255,7 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	public boolean set(String key, V value) {
 		int index = exactMatchSearch(key);
 		if (index >= 0) {
-			v[index] = value;
+			this.value[index] = value;
 			return true;
 		}
 
@@ -279,7 +270,7 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @return The value
 	 */
 	public V get(int index) {
-		return v[index];
+		return value[index];
 	}
 
 	/**
@@ -368,13 +359,12 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param character
 	 * @return
 	 */
-	private int getState(int currentState, char character) {
+	int getState(int currentState, int character) {
 		for (;;) {
-			int newCurrentState = nextState(currentState, character); // 先按success跳转
+			int newCurrentState = nextState(currentState, character);
 			if (newCurrentState != -1)
 				return newCurrentState;
-			// 跳转失败的话，按failure跳转
-			currentState = fail[currentState];
+			currentState = node[currentState].failure;
 		}
 	}
 
@@ -385,11 +375,11 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param currentState
 	 * @param collectedEmits
 	 */
-	private void storeEmits(int position, int currentState, List<Hit<V>> collectedEmits) {
-		int[] hitArray = output[currentState];
+	void storeEmits(int position, int currentState, List<Hit<V>> collectedEmits) {
+		int[] hitArray = node[currentState].output;
 		if (hitArray != null) {
 			for (int hit : hitArray) {
-				collectedEmits.add(new Hit<V>(position - l[hit], position, v[hit]));
+				collectedEmits.add(new Hit<V>(position - char_length[hit], position, value[hit]));
 			}
 		}
 	}
@@ -401,13 +391,13 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param c
 	 * @return
 	 */
-	protected int transition(int current, char c) {
+	int transition(int current, char c) {
 		int b = current;
 		int p;
 
-		p = b + c + 1;
-		if (b == check[p])
-			b = base[p];
+		p = b + (char) (c + 1);
+		if (b == node[p].check)
+			b = node[p].base;
 		else
 			return -1;
 
@@ -423,27 +413,18 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param c
 	 * @return
 	 */
-	protected int nextState(int nodePos, char c) {
-		int b = base[nodePos];
+	int nextState(int nodePos, int c) {
+		int b = node[nodePos].base;
 		int p;
 
-		p = b + c + 1;
-		if (b != check[p]) {// if p is not a valid pointer
-			if (nodePos == 0) //depth == 0
+		p = b + (char) (c + 1);
+		if (b != (p < node.length ? node[p].check : 0)) {
+			if (nodePos == 0) // depth == 0
 				return 0;
 			return -1;
 		}
 
 		return p;
-	}
-
-	/**
-	 * Build a AhoCorasickDoubleArrayTrie from a map
-	 *
-	 * @param map a map containing key-value pairs
-	 */
-	public void build(Map<String, V> map) {
-		new Builder().build(map);
 	}
 
 	/**
@@ -465,7 +446,7 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param nodePos
 	 * @return
 	 */
-	private int exactMatchSearch(String key, int pos, int len, int nodePos) {
+	int exactMatchSearch(String key, int pos, int len, int nodePos) {
 		if (len <= 0)
 			len = key.length();
 		if (nodePos <= 0)
@@ -475,24 +456,24 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 
 		char[] keyChars = key.toCharArray();
 
-		return getMatched(pos, len, result, keyChars, base[nodePos]);
+		return getMatched(pos, len, result, keyChars, node[nodePos].base);
 	}
 
-	private int getMatched(int pos, int len, int result, char[] keyChars, int b1) {
+	int getMatched(int pos, int len, int result, char[] keyChars, int b1) {
 		int b = b1;
 		int p;
 
 		for (int i = pos; i < len; i++) {
-			p = b + (int) (keyChars[i]) + 1;
-			if (b == check[p])
-				b = base[p];
+			p = b + (char) (keyChars[i] + 1);
+			if (b == node[p].check)
+				b = node[p].base;
 			else
 				return result;
 		}
 
 		p = b; // transition through '\0' to check if it's the end of a word
-		int n = base[p];
-		if (b == check[p]) // yes, it is.
+		int n = node[p].base;
+		if (b == node[p].check) // yes, it is.
 		{
 			result = -n - 1;
 		}
@@ -508,320 +489,125 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 	 * @param nodePos  the starting position of the node for searching
 	 * @return the value index of the key, minus indicates null
 	 */
-	private int exactMatchSearch(char[] keyChars, int pos, int len, int nodePos) {
+	int exactMatchSearch(char[] keyChars, int pos, int len, int nodePos) {
 		int result = -1;
 
-		return getMatched(pos, len, result, keyChars, base[nodePos]);
+		return getMatched(pos, len, result, keyChars, node[nodePos].base);
 	}
 
-//    /**
-//     * Just for debug when I wrote it
-//     */
-//    public void debug()
-//    {
-//        System.out.println("base:");
-//        for (int i = 0; i < base.length; i++)
-//        {
-//            if (base[i] < 0)
-//            {
-//                System.out.println(i + " : " + -base[i]);
-//            }
-//        }
-//
-//        System.out.println("output:");
-//        for (int i = 0; i < output.length; i++)
-//        {
-//            if (output[i] != null)
-//            {
-//                System.out.println(i + " : " + Arrays.toString(output[i]));
-//            }
-//        }
-//
-//        System.out.println("fail:");
-//        for (int i = 0; i < fail.length; i++)
-//        {
-//            if (fail[i] != 0)
-//            {
-//                System.out.println(i + " : " + fail[i]);
-//            }
-//        }
-//
-//        System.out.println(this);
-//    }
-//
-//    @Override
-//    public String toString()
-//    {
-//        String infoIndex = "i    = ";
-//        String infoChar = "char = ";
-//        String infoBase = "base = ";
-//        String infoCheck = "check= ";
-//        for (int i = 0; i < Math.min(base.length, 200); ++i)
-//        {
-//            if (base[i] != 0 || check[i] != 0)
-//            {
-//                infoChar += "    " + (i == check[i] ? " ×" : (char) (i - check[i] - 1));
-//                infoIndex += " " + String.format("%5d", i);
-//                infoBase += " " + String.format("%5d", base[i]);
-//                infoCheck += " " + String.format("%5d", check[i]);
-//            }
-//        }
-//        return "DoubleArrayTrie：" +
-//                "\n" + infoChar +
-//                "\n" + infoIndex +
-//                "\n" + infoBase +
-//                "\n" + infoCheck + "\n" +
-////                "check=" + Arrays.toString(check) +
-////                ", base=" + Arrays.toString(base) +
-////                ", used=" + Arrays.toString(used) +
-//                "size=" + size
-////                ", length=" + Arrays.toString(length) +
-////                ", value=" + Arrays.toString(value) +
-//                ;
-//    }
-//
-//    /**
-//     * 一个顺序输出变量名与变量值的调试类
-//     */
-//    private static class DebugArray
-//    {
-//        Map<String, String> nameValueMap = new LinkedHashMap<String, String>();
-//
-//        public void add(String name, int value)
-//        {
-//            String valueInMap = nameValueMap.get(name);
-//            if (valueInMap == null)
-//            {
-//                valueInMap = "";
-//            }
-//
-//            valueInMap += " " + String.format("%5d", value);
-//
-//            nameValueMap.put(name, valueInMap);
-//        }
-//
-//        @Override
-//        public String toString()
-//        {
-//            String text = "";
-//            for (Map.Entry<String, String> entry : nameValueMap.entrySet())
-//            {
-//                String name = entry.getKey();
-//                String value = entry.getValue();
-//                text += String.format("%-5s", name) + "= " + value + '\n';
-//            }
-//
-//            return text;
-//        }
-//
-//        public void println()
-//        {
-//            System.out.print(this);
-//        }
-//    }
+	public class State {
+		State failure;
 
-	/**
-	 * @return the size of the keywords
-	 */
-	public int size() {
-		return v.length;
-	}
+		TreeSet<Integer> emits;
 
-	/**
-	 * A builder to build the AhoCorasickDoubleArrayTrie
-	 */
-	private class Builder {
-		/**
-		 * the root state of trie
-		 */
-		private State rootState = new State();
-		/**
-		 * whether the position has been used
-		 */
-		private boolean[] used;
-		/**
-		 * the allocSize of the dynamic array
-		 */
-		private int allocSize;
-		/**
-		 * a parameter controls the memory growth speed of the dynamic array
-		 */
-		private int progress;
-		/**
-		 * the next position to check unused memory
-		 */
-		private int nextCheckPos;
-		/**
-		 * the size of the key-pair sets
-		 */
-		private int keySize;
+		TreeMap<Integer, State> success = new TreeMap<Integer, State>();
 
-		/**
-		 * Build from a map
-		 *
-		 * @param map a map containing key-value pairs
-		 */
-		@SuppressWarnings("unchecked")
-		public void build(Map<String, V> map) {
-			// 把值保存下来
-			v = (V[]) map.values().toArray();
-			l = new int[v.length];
-			Set<String> keySet = map.keySet();
-			// 构建二分trie树
-			addAllKeyword(keySet);
-			// 在二分trie树的基础上构建双数组trie树
-			buildDoubleArrayTrie(keySet.size());
-			used = null;
-			// 构建failure表并且合并output表
-			constructFailureStates();
-			rootState = null;
-			loseWeight();
-		}
+		int index;
 
-		/**
-		 * fetch siblings of a parent node
-		 *
-		 * @param parent   parent node
-		 * @param siblings parent node's child nodes, i . e . the siblings
-		 * @return the amount of the siblings
-		 */
-		private int fetch(State parent, List<Map.Entry<Integer, State>> siblings) {
-			if (parent.isAcceptable()) {
-				State fakeNode = new State(-(parent.getDepth() + 1)); // 此节点是parent的子节点，同时具备parent的输出
-				fakeNode.addEmit(parent.getLargestValueId());
-				siblings.add(new AbstractMap.SimpleEntry<Integer, State>(0, fakeNode));
-			}
-			for (Map.Entry<Character, State> entry : parent.getSuccess().entrySet()) {
-				siblings.add(new AbstractMap.SimpleEntry<Integer, State>(entry.getKey() + 1, entry.getValue()));
-			}
-			return siblings.size();
-		}
-
-		/**
-		 * add a keyword
-		 *
-		 * @param keyword a keyword
-		 * @param index   the index of the keyword
-		 */
-		private void addKeyword(String keyword, int index) {
-			State currentState = this.rootState;
-			for (Character character : keyword.toCharArray()) {
-				currentState = currentState.addState(character);
-			}
-			currentState.addEmit(index);
-			l[index] = keyword.length();
-		}
-
-		/**
-		 * add a collection of keywords
-		 *
-		 * @param keywordSet the collection holding keywords
-		 */
-		private void addAllKeyword(Collection<String> keywordSet) {
-			int i = 0;
-//			print_rootState();
-			for (String keyword : keywordSet) {
-//				System.out.printf("adding %s\n", keyword);
-				addKeyword(keyword, i++);
-
-//				print_rootState();
-			}
-		}
-
-		private void print_rootState() {
-			for (Entry<Character, State> entry : this.rootState.getSuccess().entrySet()) {
-				System.out.printf("%s = %s\n", entry.getKey(), entry.getValue());
-			}
-		}
-
-		/**
-		 * construct failure table
-		 */
-		private void constructFailureStates() {
-			fail = new int[size + 1];
-			output = new int[size + 1][];
-			Queue<State> queue = new ArrayDeque<State>();
-
-			// 第一步，将深度为1的节点的failure设为根节点
-			for (State depthOneState : this.rootState.getStates()) {
-				depthOneState.setFailure(this.rootState, fail);
-				queue.add(depthOneState);
-				constructOutput(depthOneState);
+		void check_validity() {
+			if (!debug)
+				return;
+			int begin = node[index].base;
+			for (Entry<Integer, State> entry : success.entrySet()) {
+				System.out.printf("check[%d] = ", begin + (char) (entry.getKey() + 1));
+				assert node[begin + (char) (entry.getKey() + 1)].check == begin;
 			}
 
-			// 第二步，为深度 > 1 的节点建立failure表，这是一个bfs
-			while (!queue.isEmpty()) {
-				State currentState = queue.remove();
+			System.out.printf("base[%d] = %d", index, begin);
+			for (Entry<Integer, State> entry : success.entrySet()) {
+				State state = entry.getValue();
+				if (state.success.isEmpty()) {
+					System.out.printf(", \tbase[%d] = value[%d] = %s", begin + (char) (entry.getKey() + 1),
+							-node[begin + (char) (entry.getKey() + 1)].base - 1, value[state.getLargestValueId()]);
 
-				for (Character transition : currentState.getTransitions()) {
-					State targetState = currentState.nextState(transition);
-					queue.add(targetState);
-
-					State traceFailureState = currentState.failure();
-					while (traceFailureState.nextState(transition) == null) {
-						traceFailureState = traceFailureState.failure();
-					}
-					State newFailureState = traceFailureState.nextState(transition);
-					targetState.setFailure(newFailureState, fail);
-					targetState.addEmit(newFailureState.emit());
-					constructOutput(targetState);
+					assert -node[begin + (char) (entry.getKey() + 1)].base - 1 == state.getLargestValueId();
 				}
 			}
+			System.out.println();
+		}
+
+		int size() {
+			int size = 1;
+			for (State state : success.values()) {
+				size += state.size();
+			}
+			return size;
+		}
+
+		void appendNullTerminator() {
+			assert emits != null;
+			State fakeNode = new State();
+			fakeNode.addEmit(getLargestValueId());
+			success.put(-1, fakeNode);
 		}
 
 		/**
 		 * construct output table
 		 */
-		private void constructOutput(State targetState) {
-			Collection<Integer> emit = targetState.emit();
-			if (emit == null || emit.size() == 0)
+		void constructOutput() {
+			if (emits == null || emits.size() == 0)
 				return;
-			int[] output = new int[emit.size()];
-			Iterator<Integer> it = emit.iterator();
+			int[] output = new int[emits.size()];
+			Iterator<Integer> it = emits.iterator();
 			for (int i = 0; i < output.length; ++i) {
 				output[i] = it.next();
 			}
-			AhoCorasickDoubleArrayTrie.this.output[targetState.getIndex()] = output;
+			AhoCorasickDoubleArrayTrie.this.node[index].output = output;
 		}
 
-		private void buildDoubleArrayTrie(int keySize) {
-			progress = 0;
-			this.keySize = keySize;
-			resize(65536 * 32); // 32个双字节
-
-			base[0] = 1;
-			nextCheckPos = 0;
-
-			State root_node = this.rootState;
-
-			List<Map.Entry<Integer, State>> siblings = new ArrayList<Map.Entry<Integer, State>>(
-					root_node.getSuccess().entrySet().size());
-			fetch(root_node, siblings);
-			if (!siblings.isEmpty())
-				insert(siblings);
+		void ensureCapacity(int begin) {
+			int addr = begin + (char) (this.success.lastKey() + 1);
+			if (addr >= node.length) {
+				resize(addr + 1);
+			}
 		}
 
-		/**
-		 * allocate the memory of the dynamic array
-		 *
-		 * @param newSize of the new array
-		 * @return the new-allocated-size
-		 */
-		private int resize(int newSize) {
-			int[] base2 = new int[newSize];
-			int[] check2 = new int[newSize];
-			boolean[] used2 = new boolean[newSize];
-			if (allocSize > 0) {
-				System.arraycopy(base, 0, base2, 0, allocSize);
-				System.arraycopy(check, 0, check2, 0, allocSize);
-				System.arraycopy(used, 0, used2, 0, allocSize);
+		int try_nextCheckPos(int begin) {
+//			assert begin > 0;
+			int addr = begin + (char) (success.firstKey() + 1);
+			if (addr < node.length && node[addr].check != 0) {
+				return -1;
+			}
+			return addr;
+		}
+
+		int try_nextCheckPos() {
+			int begin = Math.max(1, nextCheckPos - (char) (success.firstKey() + 1));
+
+			while (true) {
+				nextCheckPos = try_nextCheckPos(begin);
+				if (nextCheckPos > 0) {
+//					if (nextCheckPos == 21439) {
+//						System.out.printf("nextCheckPos = %d,\t", nextCheckPos);
+//					} else
+//						System.out.printf("nextCheckPos = %d,\t", nextCheckPos);
+					return begin;
+				}
+				++begin;
+			}
+		}
+
+		int try_base_with_optimal_start_point() {
+			int start = try_nextCheckPos() - 1;
+//			start = Math.max(-1, start - 13);
+			for (int begin : used.tailSet(start)) {
+//				assert !used.isRregistered(begin);
+				if (try_update_base(begin))
+					return begin;
 			}
 
-			base = base2;
-			check = check2;
-			used = used2;
+			return -1;
+		}
 
-			return allocSize = newSize;
+		boolean try_update_base(int begin) {
+//			assert begin > 0;
+			for (int word : success.keySet()) {
+				int addr = begin + (char) (word + 1);
+				if (addr < node.length && node[addr].check != 0) {
+					return false;
+				}
+			}
+			return true;
 		}
 
 		/**
@@ -830,93 +616,340 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 		 * @param siblings the siblings being inserted
 		 * @return the position to insert them
 		 */
-		private int insert(List<Map.Entry<Integer, State>> siblings) {
-			int begin = 0;
-			int pos = Math.max(siblings.get(0).getKey() + 1, nextCheckPos) - 1;
-			int nonzero_num = 0;
-			int first = 0;
+		void insert() {
+			int begin = try_base_with_optimal_start_point();
+			occupy(begin);
+			node[index].base = begin;
 
-			if (allocSize <= pos)
-				resize(pos + 1);
+			ensureCapacity(begin);
+			for (Map.Entry<Integer, State> sibling : success.entrySet()) {
+				State state = sibling.getValue();
+				state.index = begin + (char) (sibling.getKey() + 1);
+				node[state.index].check = begin;
+			}
 
-			outer:
-			// 此循环体的目标是找出满足base[begin + a1...an] == 0的n个空闲空间,a1...an是siblings中的n个节点
-			while (true) {
-				pos++;
+			for (Map.Entry<Integer, State> sibling : success.entrySet()) {
+				State state = sibling.getValue();
+				if (state.success.isEmpty()) {
+					node[state.index].base = -state.getLargestValueId() - 1;
+				} else {
+					state.insert();
+				}
+			}
+		}
 
-				if (allocSize <= pos)
-					resize(pos + 1);
+		public void addEmit(int keyword) {
+			if (this.emits == null) {
+				this.emits = new TreeSet<Integer>(Collections.reverseOrder());
+			}
+			this.emits.add(keyword);
+		}
 
-				if (check[pos] != 0) {
-					nonzero_num++;
-					continue;
-				} else if (first == 0) {
-					nextCheckPos = pos;
-					first = 1;
+		public Integer getLargestValueId() {
+			if (emits == null || emits.size() == 0)
+				return null;
+
+			return emits.first();
+		}
+
+		public void addEmit(Collection<Integer> emits) {
+			if (emits != null)
+				for (int emit : emits) {
+					addEmit(emit);
+				}
+		}
+
+		public void setFailure(State failure) {
+			this.failure = failure;
+			AhoCorasickDoubleArrayTrie.this.node[index].failure = failure.index;
+		}
+
+		public State nextState(int character) {
+			State nextState = success.get(character);
+			if (nextState == null && index == 0)
+				return this;
+
+			return nextState;
+		}
+
+		public State addState(int character) {
+			State nextState = success.get(character);
+			if (nextState == null) {
+				nextState = new State();
+				this.success.put(character, nextState);
+			}
+			return nextState;
+		}
+
+		public Collection<State> getStates() {
+			return this.success.values();
+		}
+
+		public Set<Integer> getTransitions() {
+			return this.success.keySet();
+		}
+
+		public Utility.TextTreeNode toShadowTree() {
+			String value;
+
+			if (node[this.index].base > 0)
+				value = '@' + String.valueOf(this.index) + ':' + node[this.index].base;
+			else
+				value = '@' + String.valueOf(this.index) + '=' + (-node[this.index].base - 1);
+
+			Utility.TextTreeNode newNode = new Utility.TextTreeNode(value);
+			int[] list = new int[success.size()];
+
+			int i = 0;
+			for (int ch : success.keySet()) {
+				list[i++] = ch;
+			}
+
+			Utility.TextTreeNode arr[] = new Utility.TextTreeNode[list.length];
+			for (i = 0; i < arr.length; ++i) {
+				int word = list[i];
+				State state = success.get(word);
+				Utility.TextTreeNode node = state.toShadowTree();
+
+				if (word == -1)
+					value = "*";
+				else
+					value = String.valueOf((char) word);
+
+//				if (state.failure != null && state.failure.depth != 0) {
+//					node.value += String.valueOf(state.failure.depth);
+//				}
+//				if (state.success.isEmpty()) {
+//					newNode.value += '+';
+//				} else {
+				node.value = value + node.value;
+				arr[i] = node;
+//				}
+			}
+
+			arr = Utility.remove_null(arr);
+			if (arr != null) {
+				int x_length = arr.length / 2;
+				int y_length = arr.length - x_length;
+
+				// tree node
+				if (x_length > 0) {
+					newNode.x = new Utility.TextTreeNode[x_length];
+					System.arraycopy(arr, 0, newNode.x, 0, x_length);
 				}
 
-				begin = pos - siblings.get(0).getKey(); // 当前位置离第一个兄弟节点的距离
-				if (allocSize <= (begin + siblings.get(siblings.size() - 1).getKey())) {
-					// progress can be zero // 防止progress产生除零错误
-					double l = (1.05 > 1.0 * keySize / (progress + 1)) ? 1.05 : 1.0 * keySize / (progress + 1);
-					resize((int) (allocSize * l));
+				if (y_length > 0) {
+					newNode.y = new Utility.TextTreeNode[y_length];
+					System.arraycopy(arr, x_length, newNode.y, 0, y_length);
 				}
+			}
+			return newNode;
+		}
 
-				if (used[begin])
-					continue;
+		@Override
+		public String toString() {
+			Utility.TextTreeNode root = this.toShadowTree();
+			return root.toString(root.max_width() + 1, true);
+		}
+	}
 
-				for (int i = 1; i < siblings.size(); i++)
-					if (check[begin + siblings.get(i).getKey()] != 0)
-						continue outer;
-
+	/**
+	 * @return the size of the keywords
+	 */
+	public int memory_size() {
+		int length = 0;
+		for (int i = node.length - 1; i >= 0; --i) {
+			if (node[i].check != 0) {
+				length = i + 1;
 				break;
 			}
+		}
+		return length;
+	}
 
-			// -- Simple heuristics --
-			// if the percentage of non-empty contents in check between the
-			// index
-			// 'next_check_pos' and 'check' is greater than some constant value
-			// (e.g. 0.9),
-			// new 'next_check_pos' index is written by 'check'.
-			if (1.0 * nonzero_num / (pos - nextCheckPos + 1) >= 0.95)
-				nextCheckPos = pos; // 从位置 next_check_pos 开始到 pos 间，如果已占用的空间在95%以上，下次插入节点时，直接从 pos 位置处开始查找
-			used[begin] = true;
+	/**
+	 * the root state of trie
+	 */
+	State root = new State();
+	/**
+	 * whether the position has been used
+	 */
+	KeyGenerator used = new KeyGenerator();
 
-			size = Math.max(size, begin + siblings.get(siblings.size() - 1).getKey() + 1);
+	/**
+	 * the next position to check unused memory
+	 */
+	int nextCheckPos;
 
-			for (Map.Entry<Integer, State> sibling : siblings) {
-				check[begin + sibling.getKey()] = begin;
-			}
+	/**
+	 * Build from a map
+	 *
+	 * @param map a map containing key-value pairs
+	 */
+	@SuppressWarnings("unchecked")
+	public AhoCorasickDoubleArrayTrie(TreeMap<String, V> map) {
+		value = (V[]) map.values().toArray();
+		char_length = new int[value.length];
+		Set<String> keySet = map.keySet();
+		addAllKeyword(keySet);
 
-			for (Map.Entry<Integer, State> sibling : siblings) {
-				List<Map.Entry<Integer, State>> new_siblings = new ArrayList<Map.Entry<Integer, State>>(
-						sibling.getValue().getSuccess().entrySet().size() + 1);
+		assert keySet.size() == value.length;
 
-				if (fetch(sibling.getValue(), new_siblings) == 0) // 一个词的终止且不为其他词的前缀，其实就是叶子节点
-				{
-					base[begin + sibling.getKey()] = (-sibling.getValue().getLargestValueId() - 1);
-					progress++;
-				} else {
-					int h = insert(new_siblings); // dfs
-					base[begin + sibling.getKey()] = h;
+		resize(65536);
+		root.insert();
+
+//		used = null;
+
+		int length = memory_size();
+		if (length < node.length) {
+			Node[] pointer = new Node[length];
+			System.arraycopy(this.node, 0, pointer, 0, length);
+			this.node = pointer;
+		}
+
+		constructFailureStates();
+	}
+
+	/**
+	 * add a keyword
+	 *
+	 * @param keyword a keyword
+	 * @param index   the index of the keyword
+	 */
+	void addKeyword(String keyword, int index) {
+		State currentState = this.root;
+		for (char character : Utility.toCharArray(keyword)) {
+			currentState = currentState.addState(character);
+		}
+		currentState.addEmit(index);
+		currentState.appendNullTerminator();
+
+		char_length[index] = keyword.length();
+	}
+
+	/**
+	 * add a collection of keywords
+	 *
+	 * @param keywordSet the collection holding keywords
+	 */
+	void addAllKeyword(Collection<String> keywordSet) {
+		int i = 0;
+		for (String keyword : keywordSet) {
+			addKeyword(keyword, i++);
+		}
+	}
+
+	/**
+	 * construct failure table
+	 */
+	void constructFailureStates() {
+		Queue<State> queue = new ArrayDeque<State>();
+
+		// First, set the fail state of all depth 1 states to the root state
+		for (State depthOneState : root.getStates()) {
+			depthOneState.setFailure(root);
+			queue.add(depthOneState);
+			depthOneState.constructOutput();
+		}
+
+		// Second, determine the fail state for all depth > 1 state
+		while (!queue.isEmpty()) {
+			State currentState = queue.remove();
+
+			for (Integer transition : currentState.getTransitions()) {
+				State targetState = currentState.nextState(transition);
+				queue.add(targetState);
+
+				State traceFailureState = currentState.failure;
+				while (traceFailureState.nextState(transition) == null) {
+					traceFailureState = traceFailureState.failure;
 				}
-				sibling.getValue().setIndex(begin + sibling.getKey());
+				State newFailureState = traceFailureState.nextState(transition);
+				targetState.setFailure(newFailureState);
+				targetState.addEmit(newFailureState.emits);
+				targetState.constructOutput();
 			}
-			return begin;
 		}
 
-		/**
-		 * free the unnecessary memory
-		 */
-		private void loseWeight() {
-			int[] nbase = new int[size + 65535];
-			System.arraycopy(base, 0, nbase, 0, size);
-			base = nbase;
+//		root = null;
+	}
 
-			int[] ncheck = new int[size + 65535];
-			System.arraycopy(check, 0, ncheck, 0, size);
-			check = ncheck;
+	/**
+	 * allocate the memory of the dynamic array
+	 *
+	 * @param newSize of the new array
+	 */
+	void resize(int newSize) {
+		assert node == null || newSize > node.length;
+		newSize = (int) Math.pow(2, (int) Math.ceil(Math.log(newSize) / Math.log(2)));
+
+		Node[] _pointer = new Node[newSize];
+
+		int start;
+		if (node != null) {
+			System.arraycopy(node, 0, _pointer, 0, node.length);
+			start = node.length;
+		} else
+			start = 0;
+
+		for (int i = start; i < newSize; ++i)
+			_pointer[i] = new Node();
+
+		node = _pointer;
+	}
+
+	int try_base(TreeMap<Integer, State> siblings) {
+		int begin = 0;
+		int pos = Math.max((char) (siblings.firstKey() + 1) + 1, nextCheckPos) - 1;
+//		int nonzero_num = 0;
+		int first = 0;
+
+		outer: while (true) {
+			pos++;
+
+			if (node[pos].check != 0) {
+//				nonzero_num++;
+				continue;
+			}
+
+			if (first == 0) {
+				nextCheckPos = pos;
+				first = 1;
+			}
+
+			begin = pos - (char) (siblings.firstKey() + 1); // 当前位置离第一个兄弟节点的距离
+//			if (pointer.length <= (begin + (char) (siblings.lastKey() + 1))) {
+//				// progress can be zero // 防止progress产生除零错误
+//				double l = (1.05 > 1.0 * v.length / (progress + 1)) ? 1.05 : 1.0 * v.length / (progress + 1);
+//				resize((int) (pointer.length * l));
+//			}
+
+			if (used.isRregistered(begin))
+				continue;
+
+			Iterator<Entry<Integer, State>> iterator = siblings.entrySet().iterator();
+
+			if (iterator.hasNext()) {
+				iterator.next();
+				while (iterator.hasNext()) {
+					Entry<Integer, State> p = iterator.next();
+					int addr = begin + (char) (p.getKey() + 1);
+					if (addr < node.length && node[addr].check != 0)
+						continue outer;
+				}
+			}
+
+			break;
 		}
+
+		// -- Simple heuristics --
+		// if the percentage of non-empty contents in check between the index
+		// 'next_check_pos' and 'check' is greater than some constant value (e.g.
+		// 0.9),new 'next_check_pos' index is written by 'check'.
+//		if (1.0 * nonzero_num / (pos - nextCheckPos + 1) >= 0.95)
+//			nextCheckPos = pos; // 从位置 next_check_pos 开始到 pos 间，如果已占用的空间在95%以上，下次插入节点时，直接从 pos 位置处开始查找
+
+		return begin;
 	}
 
 	public void update(String keyword, String value) {
@@ -928,4 +961,299 @@ public class AhoCorasickDoubleArrayTrie<V> implements Serializable {
 //		l[index] = keyword.length();
 	}
 
+	public static void testBenchmark() {
+
+		String text = Common.text;
+		TreeMap<String, String> dictionaryMap = Common.dictionaryMap;
+
+		// Build a ahoCorasickNaive implemented by robert-bor
+		Trie ahoCorasickNaive = new Trie(dictionaryMap);
+
+		// Build a AhoCorasickDoubleArrayTrie implemented by hankcs
+		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(
+				dictionaryMap);
+		// Let's test the speed of the two Aho-Corasick automata
+		System.out.printf("Parsing document which contains %d characters, with a dictionary of %d words.\n",
+				text.length(), dictionaryMap.size());
+		long start = System.currentTimeMillis();
+		int hitsNaive = ahoCorasickNaive.parseText(text).size();
+
+		long costTimeNaive = System.currentTimeMillis() - start;
+		start = System.currentTimeMillis();
+		int hitsACDAT = ahoCorasickDoubleArrayTrie.parseText(text).size();
+
+		assert (hitsNaive == hitsACDAT);
+
+		long costTimeACDAT = System.currentTimeMillis() - start;
+		System.out.printf("%-15s\t%-15s\t%-15s\n", "", "Naive", "ACDAT");
+		System.out.printf("%-15s\t%-15d\t%-15d\n", "time", costTimeNaive, costTimeACDAT);
+		System.out.printf("%-15s\t%-15.2f\t%-15.2f\n", "char/s", (text.length() / (costTimeNaive / 1000.0)),
+				(text.length() / (costTimeACDAT / 1000.0)));
+		System.out.printf("%-15s\t%-15.2f\t%-15.2f\n", "rate", 1.0, costTimeNaive / (double) costTimeACDAT);
+		System.out.printf("%-15s\t%-15d\t%-15d\n", "hits", hitsNaive, hitsACDAT);
+		System.out.println("===========================================================================");
+		System.out.println("space cost = " + ahoCorasickDoubleArrayTrie.node.length);
+	}
+
+	void occupy(int begin) {
+//		System.out.println("occupy begin = " + begin);
+//		assert !used.isRregistered(begin);
+		used.register_key(begin);
+	}
+
+	void recycle(int begin) {
+		if (begin > 0) {
+//			assert used.isRregistered(begin);
+			used.unregister_key(begin);
+		}
+	}
+
+	public int[] getNonzeroCheckIndex() {
+		List<Integer> indices = new ArrayList<Integer>();
+		for (int i = 0; i < node.length; ++i)
+			if (node[i].check != 0) {
+				indices.add(i);
+			}
+
+		int[] arr = Utility.toArray(indices);
+		if (arr == null)
+			return new int[] {};
+		return arr;
+	}
+
+	public int[] getNonzeroBaseIndex() {
+		List<Integer> indices = new ArrayList<Integer>();
+		for (int i = 0; i < node.length; ++i)
+			if (node[i].base != 0) {
+				indices.add(i);
+			}
+
+		int[] arr = Utility.toArray(indices);
+		if (arr == null)
+			return new int[] {};
+		return arr;
+	}
+
+	public int[] getValidUsedIndex() {
+		List<Integer> indices = new ArrayList<Integer>();
+		for (int i = 1; i < node.length; ++i) {
+			if (!used.isRregistered(i))
+				continue;
+
+			indices.add(i);
+		}
+
+		int[] arr = Utility.toArray(indices);
+		if (arr == null)
+			return new int[] {};
+		return arr;
+	}
+
+	void checkValidity() {
+		int[] checkIndex = getNonzeroCheckIndex();
+
+		if (debug) {
+			System.out.println("checkIndex.length = " + checkIndex.length);
+			System.out.println("checkIndex = " + Utility.toString(checkIndex));
+		}
+
+		int[] baseIndex = getNonzeroBaseIndex();
+		if (debug) {
+			System.out.println("baseIndex.length = " + baseIndex.length);
+			System.out.println("baseIndex = " + Utility.toString(baseIndex));
+		}
+
+		assert baseIndex[0] == 0;
+		assert Utility.equals(Arrays.copyOfRange(baseIndex, 1, baseIndex.length), checkIndex);
+
+		int[] usedIndex = getValidUsedIndex();
+		if (debug) {
+			System.out.println("usedIndex.length = " + usedIndex.length);
+			System.out.println("usedIndex = " + Utility.toString(usedIndex));
+			System.out.println("usedIndex.length + key.length - baseIndex.length = "
+					+ (usedIndex.length + value.length - baseIndex.length));
+
+			System.out.println("this.root.size() - baseIndex.length = " + (this.root.size() - baseIndex.length));
+		}
+
+		for (int kinder : checkIndex) {
+			int begin = node[kinder].check;
+			assert used.isRregistered(begin);
+		}
+
+		for (int index : baseIndex) {
+			int begin = node[index].base;
+			if (begin < 0)
+				assert -begin - 1 < value.length;
+			else
+				assert used.isRregistered(begin);
+		}
+
+		for (int begin : usedIndex) {
+			if (node[begin].check != 0) {
+				if (node[begin].check == begin)
+					assert node[begin].base < 0;
+				else
+					assert node[begin].base > 0;
+			}
+		}
+		assert baseIndex.length == this.root.size();
+		assert usedIndex.length + value.length == baseIndex.length;
+	}
+
+	void remove(String keyword) {
+//		int index = Arrays.binarySearch(key, keyword);
+//		if (index < 0)
+//			return;
+//
+//		String[] _key = new String[key.length - 1];
+//		System.arraycopy(key, 0, _key, 0, index);
+//		System.arraycopy(key, index + 1, _key, index, key.length - 1 - index);
+//		key = _key;
+//
+//		State currentState = this.root;
+//		Stack<State> parent = new Stack<State>();
+//		for (int i = 0; i < keyword.length(); ++i) {
+//			char ch = keyword.charAt(i);
+//			parent.add(currentState);
+//			currentState = currentState.success.get((int) ch);
+//		}
+//
+//		int unicode = currentState.deleteEmit(parent);
+////		if (crutialIndex >= 0) {
+////			char ch = keyword.charAt(crutialIndex);
+////			update(crutialState, ch);
+////		} else {
+////		int crutialIndex = keyword.length() - 1;
+////		}
+////
+//		for (;;) {
+//			State node = parent.pop();
+//			for (Entry<Integer, State> p : node.success.tailMap(unicode, false).entrySet()) {
+//				p.getValue().decrementKeyIndex();
+//			}
+//			if (parent.isEmpty())
+//				break;
+//			unicode = keyword.charAt(parent.size() - 1);
+//		}
+	}
+
+	public int[][] testSearch() {
+		int[][] arrs = new int[this.value.length][];
+//		int j = 0;
+//		for (String key : this.key) {
+//			List<Integer> list = commonPrefixSearch(key);
+//			int[] arr = new int[list.size()];
+//			int i = 0;
+//			for (int index : commonPrefixSearch(key)) {
+////				System.out.printf("key[%d] = %s\n", index, this.key[index]);
+//				assert key.startsWith(this.key[index]);
+//				arr[i++] = index;
+//			}
+//			arrs[j++] = arr;
+//		}
+		return arrs;
+	}
+
+	void insert(String keyword) {
+//		int index = Arrays.binarySearch(key, keyword);
+//		if (index >= 0)
+//			return;
+//		index = -index - 1;
+//
+//		String[] _key = new String[key.length + 1];
+//		System.arraycopy(key, 0, _key, 0, index);
+//		System.arraycopy(key, index, _key, index + 1, key.length - index);
+//		_key[index] = keyword;
+//		key = _key;
+//
+//		State currentState = this.root;
+//		State crutialState = null;
+//		int crutialIndex = -1;
+//		Stack<State> parent = new Stack<State>();
+//		for (int i = 0; i < keyword.length(); ++i) {
+//			char ch = keyword.charAt(i);
+//			if (crutialState == null)
+//				parent.add(currentState);
+//			currentState = currentState.addState(ch, index);
+//			if (currentState.index == 0 && crutialState == null) {
+//				crutialState = parent.peek();
+//				crutialIndex = i;
+//			}
+//		}
+//
+//		currentState.addEmit(index);
+//		if (crutialIndex >= 0) {
+//			char ch = keyword.charAt(crutialIndex);
+//			update(crutialState, ch);
+//		} else {
+//			crutialIndex = keyword.length() - 1;
+//		}
+//
+//		while (!parent.isEmpty()) {
+//			State father = parent.pop();
+//			for (Entry<Integer, State> p : father.success.tailMap((int) keyword.charAt(crutialIndex), false)
+//					.entrySet()) {
+//				p.getValue().incrementKeyIndex();
+//			}
+//			--crutialIndex;
+//		}
+
+	}
+
+	public static void main(String[] args) throws IOException {
+		testBenchmark();
+
+		ArrayList<String> words = new ArrayList<String>(Common.dictionaryMap.keySet());
+
+		Collections.shuffle(words, new Random(0));
+
+		System.out.println("字典词条：" + words.size());
+
+		if (debug) {
+			for (String word : words) {
+				System.out.println(word);
+			}
+		}
+
+		long start = System.currentTimeMillis();
+		AhoCorasickDoubleArrayTrie<String> dat = new AhoCorasickDoubleArrayTrie<String>(Common.dictionaryMap);
+		System.out.println("time cost = " + (System.currentTimeMillis() - start));
+		System.out.println("space cost = " + dat.node.length);
+
+		if (debug) {
+			System.out.println(dat);
+		}
+
+		dat.checkValidity();
+		int[][] arr = dat.testSearch();
+		start = System.currentTimeMillis();
+		AhoCorasickDoubleArrayTrie<String> _dat = new AhoCorasickDoubleArrayTrie<String>(Common.dictionaryMap);
+		System.out.println("time cost = " + (System.currentTimeMillis() - start));
+		System.out.println("space cost = " + _dat.node.length);
+		String debugWord = null;
+//		debugWord = "万能胶";
+		for (String word : words) {
+			if (debugWord != null && !debugWord.equals(word))
+				continue;
+			if (debug)
+				System.out.println("removing word: " + word);
+
+			_dat.remove(word);
+			if (debug) {
+				System.out.println(_dat);
+			}
+			_dat.checkValidity();
+			_dat.insert(word);
+			if (debug) {
+				System.out.println(_dat);
+			}
+			_dat.checkValidity();
+			assert dat.equals(_dat);
+			int[][] _arr = _dat.testSearch();
+			assert Utility.equals(arr, _arr);
+		}
+	}
+
+	static final boolean debug = false;
 }

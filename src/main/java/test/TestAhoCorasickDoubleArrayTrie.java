@@ -1,6 +1,7 @@
 package test;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.TreeMap;
 
 import org.ahocorasick.trie.Trie;
@@ -15,7 +16,7 @@ public class TestAhoCorasickDoubleArrayTrie {
 	static void runTest() throws IOException {
 
 		String text = Common.text;
-		TreeMap<String, String> dictionaryMap = Common.dictionaryMap;
+		Map<String, String> dictionaryMap = Common.dictionaryMap;
 
 		// Build a ahoCorasickNaive implemented by robert-bor
 		Trie ahoCorasickNaive = new Trie(dictionaryMap);

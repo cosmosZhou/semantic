@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.TreeMap;
 
 import org.apache.commons.lang.SystemUtils;
 import org.apache.log4j.Logger;
@@ -100,8 +101,8 @@ public class MySQL extends DataSource {
 		}
 	}
 
-	public HashMap<String, String> select_repertoire(String service) throws Exception {
-		HashMap<String, String> dict = new HashMap<String, String>();
+	public TreeMap<String, String> select_repertoire(String service) throws Exception {
+		TreeMap<String, String> dict = new TreeMap<String, String>();
 		try (DataSource inst = open()) {
 
 			String services = null;

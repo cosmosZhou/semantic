@@ -33,7 +33,7 @@ public class TestUpdate {
 	static public void testSearchTrie() throws Exception {
 		Trie naiveConstruct = naiveConstruct();
 		Trie naiveUpdate = naiveUpdate();
-		boolean equals = naiveConstruct.rootState.equals(naiveUpdate.rootState);
+		boolean equals = naiveConstruct.root.equals(naiveUpdate.root);
 		assert(equals);
 		assert(naiveConstruct.parseText(text).size() == naiveUpdate.parseText(text).size());
 	}

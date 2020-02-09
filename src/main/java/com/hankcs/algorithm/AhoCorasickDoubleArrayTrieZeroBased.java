@@ -996,7 +996,7 @@ public class AhoCorasickDoubleArrayTrieZeroBased<V> implements Serializable {
 	public static void main(String[] args) {
 
 		String text = Common.text;
-		TreeMap<String, String> dictionaryMap = Common.dictionaryMap;
+		Map<String, String> dictionaryMap = Common.dictionaryMap;
 
 		// Build a ahoCorasickNaive implemented by robert-bor
 		Trie ahoCorasickNaive = new Trie(dictionaryMap);

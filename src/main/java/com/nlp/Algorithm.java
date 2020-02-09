@@ -373,8 +373,7 @@ public class Algorithm {
 		}
 		long countDoubleArray;
 		{
-			AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>();
-			ahoCorasickDoubleArrayTrie.build(dictionaryMap);
+			AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(dictionaryMap);
 
 			long start = System.currentTimeMillis();
 			countDoubleArray = ahoCorasickDoubleArrayTrie.parseText(text).size();

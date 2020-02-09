@@ -32,7 +32,7 @@ public class DetectFaultForDelete {
 		Trie trieDelete = naiveDelete(wordsToBeDeleted);
 		dictionaryMap.remove(wordsToBeDeleted);
 		Trie trieWhole = naiveConstruct();
-		return trieWhole.rootState.equals(trieDelete.rootState);
+		return trieWhole.root.equals(trieDelete.root);
 	}
 
 	void rotate(ArrayList<String> list) {

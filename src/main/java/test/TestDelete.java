@@ -29,14 +29,14 @@ public class TestDelete {
 			Trie naiveConstruct = naiveConstruct();
 			trieDynamic.erase(wordsToBeDeleted);
 
-			boolean equals = naiveConstruct.rootState.equals(trieDynamic.rootState);
+			boolean equals = naiveConstruct.root.equals(trieDynamic.root);
 			assert (equals);
 			assert (naiveConstruct.parseText(text).size() == trieDynamic.parseText(text).size());
 
 			dictionaryMap.put(wordsToBeDeleted, wordsToBeDeleted);
 			trieDynamic.update(wordsToBeDeleted, wordsToBeDeleted);
 
-			equals = trieWhole.rootState.equals(trieDynamic.rootState);
+			equals = trieWhole.root.equals(trieDynamic.root);
 			assert (equals);
 			assert (trieWhole.parseText(text).size() == trieDynamic.parseText(text).size());
 		}

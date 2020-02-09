@@ -69,10 +69,8 @@ public class AhoCorasick {
 		if (!acdat.containsKey(service)) {
 			synchronized (acdat) {
 				System.out.println("initializing acdat");
-				HashMap<String, String> map = MySQL.instance.select_repertoire(service);
-				AhoCorasickDoubleArrayTrie<String> ahoCorasick = new AhoCorasickDoubleArrayTrie<String>();
+				AhoCorasickDoubleArrayTrie<String> ahoCorasick = new AhoCorasickDoubleArrayTrie<String>(MySQL.instance.select_repertoire(service));
 				acdat.put(service, ahoCorasick);
-				ahoCorasick.build(map);
 			}
 		}
 

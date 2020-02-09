@@ -45,25 +45,26 @@ public class DoubleArrayTrie {
 		}
 
 		void copy2array(State states[]) {
-			states[this.code] = this;
+			if (this.code >= 0)
+				states[this.code] = this;
 			for (State state : success.values()) {
 				state.copy2array(states);
 			}
 		}
 
 		void ensureCapacity() {
-			int begin = pointer[this.code].base;
-			int addr = begin + (char) (this.success.lastKey() + 1);
+			int begin = getBase(code);
+			int addr = begin + this.success.lastKey();
 			if (addr >= pointer.length) {
 				resize(addr + 1);
 			}
 		}
 
 		boolean try_update_base(int begin) {
-//			assert begin > 0;
-			for (int word : success.keySet()) {
-				int addr = begin + (char) (word + 1);
-				if (addr < pointer.length && pointer[addr].check != 0) {
+//			assert begin >= 0;
+			for (char word : success.keySet()) {
+				int addr = begin + word;
+				if (addr < pointer.length && pointer[addr].check >= 0) {
 					return false;
 				}
 			}
@@ -71,9 +72,9 @@ public class DoubleArrayTrie {
 		}
 
 		int try_nextCheckPos(int begin) {
-//			assert begin > 0;
-			int addr = begin + (char) (success.firstKey() + 1);
-			if (addr < pointer.length && pointer[addr].check != 0) {
+//			assert begin >= 0;
+			int addr = begin + success.firstKey();
+			if (addr < pointer.length && pointer[addr].check >= 0) {
 				return -1;
 			}
 			return addr;
@@ -91,7 +92,7 @@ public class DoubleArrayTrie {
 		}
 
 		int try_nextCheckPos() {
-			int begin = Math.max(1, nextCheckPos - (char) (success.firstKey() + 1));
+			int begin = Math.max(0, nextCheckPos - success.firstKey());
 
 			while (true) {
 				nextCheckPos = try_nextCheckPos(begin);
@@ -109,7 +110,7 @@ public class DoubleArrayTrie {
 		int try_base_with_optimal_start_point() {
 
 			int start = try_nextCheckPos() - 1;
-//			start = Math.max(0, start - 13);
+//			start = Math.max(-1, start - 13);
 			for (int begin : used.tailSet(start)) {
 //				assert !used.isRregistered(begin);
 				if (try_update_base(begin))
@@ -121,24 +122,24 @@ public class DoubleArrayTrie {
 
 		int update_base() {
 			int begin = pointer[code].base;
-			assert used.isRregistered(begin) || begin == 0;
+			assert used.isRregistered(begin) || begin == Integer.MIN_VALUE;
 
 			int _begin = this.try_base();
 			pointer[code].base = _begin;
-			assert pointer[code].check != 0;
+			assert pointer[code].check >= 0;
 			this.ensureCapacity();
 
-			for (Entry<Integer, State> entry : success.entrySet()) {
-				int word = entry.getKey();
+			for (Entry<Character, State> entry : success.entrySet()) {
+				char word = entry.getKey();
 				State state = entry.getValue();
-				if (state.code != 0) {
-					assert state.code == begin + (char) (word + 1);
+				if (state.code != -1) {
+					assert state.code == begin + word;
 					assert pointer[state.code].check == begin;
 				}
 
-				int code = _begin + (char) (word + 1);
-				assert pointer[code].check == 0;
-				if (state.code != 0) {
+				int code = _begin + word;
+				assert pointer[code].check == -1;
+				if (state.code != -1) {
 					pointer[code].base = pointer[state.code].base;
 					pointer[state.code].clear();
 				}
@@ -162,15 +163,15 @@ public class DoubleArrayTrie {
 				return begin;
 
 			pointer[code].base = _begin;
-			assert pointer[code].check != 0;
+			assert pointer[code].check >= 0;
 
-			for (Entry<Integer, State> entry : success.entrySet()) {
-				int word = entry.getKey();
+			for (Entry<Character, State> entry : success.entrySet()) {
+				char word = entry.getKey();
 				State state = entry.getValue();
 
-				int code = _begin + (char) (word + 1);
-				assert pointer[code].check == 0;
-				assert state.code != 0;
+				int code = _begin + word;
+				assert pointer[code].check == -1;
+				assert state.code != -1;
 
 				pointer[code].base = pointer[state.code].base;
 				pointer[state.code].clear();
@@ -190,53 +191,53 @@ public class DoubleArrayTrie {
 
 		void incrementKeyIndex() {
 			++this.emit;
-			for (Entry<Integer, State> p : success.entrySet()) {
+			for (Entry<Character, State> p : success.entrySet()) {
 				State node = p.getValue();
 				node.incrementKeyIndex();
 				if (node.success.isEmpty()) {
 					pointer[node.code].base = -node.emit - 1;
-					assert pointer[node.code].check != 0;
+					assert pointer[node.code].check >= 0;
 				}
 			}
 		}
 
 		void decrementKeyIndex() {
 			--this.emit;
-			for (Entry<Integer, State> p : success.entrySet()) {
+			for (Entry<Character, State> p : success.entrySet()) {
 				State node = p.getValue();
 				node.decrementKeyIndex();
-				assert node.code == pointer[code].base + (char) (p.getKey() + 1);
+				assert node.code == pointer[code].base + p.getKey();
 				assert pointer[node.code].check == pointer[code].base;
 				if (node.success.isEmpty()) {
 					pointer[node.code].base = -node.emit - 1;
-					assert pointer[node.code].check != 0;
+					assert pointer[node.code].check >= 0;
 				}
 			}
 		}
 
-		int code;
+		int code = -1;
 		int depth;
 		int emit;
 
 		int size() {
 			int size = 1;
-			for (Entry<Integer, State> entry : success.entrySet()) {
+			for (Entry<Character, State> entry : success.entrySet()) {
 				size += entry.getValue().size();
 			}
 			return size;
 		}
 
-		TreeMap<Integer, State> success = new TreeMap<Integer, State>();
+		TreeMap<Character, State> success = new TreeMap<Character, State>();
 
 		void initialize(int begin) {
 			occupy(begin);
-			pointer[code].base = begin;
+			setBase(code, begin);
 //			assert code == 0 || pointer[code].check != 0;
 
 			ensureCapacity();
-			for (Entry<Integer, State> p : success.entrySet()) {
+			for (Entry<Character, State> p : success.entrySet()) {
 				State node = p.getValue();
-				node.code = begin + (char) (p.getKey() + 1);
+				node.code = begin + p.getKey();
 				pointer[node.code].check = begin;
 			}
 		}
@@ -244,29 +245,29 @@ public class DoubleArrayTrie {
 		void check_validity() {
 			if (!debug)
 				return;
-			int begin = pointer[code].base;
-			for (Entry<Integer, State> entry : success.entrySet()) {
-				System.out.printf("check[%d] = ", begin + (char) (entry.getKey() + 1));
-				assert pointer[begin + (char) (entry.getKey() + 1)].check == begin;
+			int begin = getBase(code);
+			for (Entry<Character, State> entry : success.entrySet()) {
+				System.out.printf("check[%d] = ", begin + entry.getKey());
+				assert pointer[begin + entry.getKey()].check == begin;
 			}
 			System.out.printf("base[%d] = %d", code, begin);
-			for (Entry<Integer, State> entry : success.entrySet()) {
+			for (Entry<Character, State> entry : success.entrySet()) {
 				State node = entry.getValue();
 				if (node.success.isEmpty()) {
-					System.out.printf(", \tbase[%d] = key[%d] = %s", begin + (char) (entry.getKey() + 1),
-							-pointer[begin + (char) (entry.getKey() + 1)].base - 1, key[node.emit]);
+					System.out.printf(", \tbase[%d] = key[%d] = %s", begin + entry.getKey(),
+							-pointer[begin + entry.getKey()].base - 1, key[node.emit]);
 
-					assert -pointer[begin + (char) (entry.getKey() + 1)].base - 1 == node.emit;
+					assert -pointer[begin + entry.getKey()].base - 1 == node.emit;
 				}
 			}
 			System.out.println();
 		}
 
 		State addState(char character, int index) {
-			State nextState = this.success.get((int) character);
+			State nextState = this.success.get(character);
 			if (nextState == null) {
 				nextState = new State(this.depth + 1, index);
-				success.put((int) character, nextState);
+				success.put(character, nextState);
 			}
 			return nextState;
 		}
@@ -274,17 +275,17 @@ public class DoubleArrayTrie {
 		void addEmit(int emit) {
 			this.emit = emit;
 			State leaf = new State(this.depth + 1, emit);
-			success.put(-1, leaf);
+			success.put('\0', leaf);
 			if (success.size() > 1) {
-				Iterator<Entry<Integer, State>> iterator = success.entrySet().iterator();
+				Iterator<Entry<Character, State>> iterator = success.entrySet().iterator();
 				iterator.next();
 
 				int begin = pointer[code].base;
-				if (pointer[begin].check == 0) {
+				if (pointer[begin].check == -1) {
 					pointer[begin].check = begin;
 					assert used.isRregistered(begin);
 					while (iterator.hasNext()) {
-						Entry<Integer, State> entry = iterator.next();
+						Entry<Character, State> entry = iterator.next();
 						State node = entry.getValue();
 						node.incrementKeyIndex();
 						node.check_validity();
@@ -297,16 +298,16 @@ public class DoubleArrayTrie {
 					assert used.isRregistered(pointer[code].base);
 					recycle(pointer[code].base);
 
-					assert pointer[begin].check == 0;
+					assert pointer[begin].check == -1;
 					pointer[begin].check = pointer[code].base = begin;
 
-					assert pointer[code].check != 0;
+					assert pointer[code].check >= 0;
 
 					while (iterator.hasNext()) {
-						Entry<Integer, State> entry = iterator.next();
-						int code = begin + (char) (entry.getKey() + 1);
+						Entry<Character, State> entry = iterator.next();
+						int code = begin + entry.getKey();
 						State node = entry.getValue();
-						assert pointer[code].check == 0 && pointer[code].base == 0;
+						assert pointer[code].check == -1 && pointer[code].base == Integer.MIN_VALUE;
 
 						pointer[code].check = begin;
 						pointer[code].base = pointer[node.code].base;
@@ -322,15 +323,15 @@ public class DoubleArrayTrie {
 				}
 				leaf.code = begin;
 				pointer[begin].base = -emit - 1;
-				assert pointer[begin].check != 0;
+				assert pointer[begin].check >= 0;
 
 				this.check_validity();
 			}
 		}
 
-		int deleteEmit(Stack<State> parent) {
-			State leaf = success.get(-1);
-			success.remove(-1);
+		char deleteEmit(Stack<State> parent) {
+			State leaf = success.get('\0');
+			success.remove('\0');
 			assert pointer[leaf.code].check == leaf.code;
 			assert pointer[leaf.code].base + emit == -1;
 			pointer[leaf.code].clear();
@@ -344,8 +345,8 @@ public class DoubleArrayTrie {
 
 					State father = parent.peek();
 
-					int unicode = -1;
-					for (Entry<Integer, State> entry : father.success.entrySet()) {
+					char unicode = 0;
+					for (Entry<Character, State> entry : father.success.entrySet()) {
 						if (entry.getValue() == orphan) {
 							unicode = entry.getKey();
 							break;
@@ -363,11 +364,11 @@ public class DoubleArrayTrie {
 			} else
 				--emit;
 			parent.add(this);
-			return -1;
+			return 0;
 		}
 
 		void fetch(int emit_end) {
-			int prev = -1;
+			int prev = 0;
 
 			for (int i = this.emit; i < emit_end; ++i) {
 				if (key[i].length() < this.depth)
@@ -375,7 +376,7 @@ public class DoubleArrayTrie {
 
 				String tmp = key[i];
 
-				int cur = -1;
+				char cur = 0;
 				if (tmp.length() != this.depth)
 					cur = tmp.charAt(this.depth);
 
@@ -402,29 +403,29 @@ public class DoubleArrayTrie {
 		public Utility.TextTreeNode toShadowTree() {
 			String value;
 
-			if (pointer[this.code].base > 0)
-				value = '@' + String.valueOf(this.code) + ':' + pointer[this.code].base;
+			if (getBase(this.code) > 0)
+				value = '@' + String.valueOf(this.code) + ':' + getBase(code);
 			else
 				value = '@' + String.valueOf(this.code) + '-' + this.emit;
 
 			Utility.TextTreeNode newNode = new Utility.TextTreeNode(value);
-			int[] list = new int[success.size()];
+			char[] list = new char[success.size()];
 
 			int i = 0;
-			for (int ch : success.keySet()) {
+			for (char ch : success.keySet()) {
 				list[i++] = ch;
 			}
 
 			Utility.TextTreeNode arr[] = new Utility.TextTreeNode[list.length];
 			for (i = 0; i < arr.length; ++i) {
-				int word = list[i];
+				char word = list[i];
 				State state = success.get(word);
 				Utility.TextTreeNode node = state.toShadowTree();
 
 				if (word == -1)
 					value = "*";
 				else
-					value = String.valueOf((char) word);
+					value = String.valueOf(word);
 
 //				if (state.failure != null && state.failure.depth != 0) {
 //					node.value += String.valueOf(state.failure.depth);
@@ -489,6 +490,20 @@ public class DoubleArrayTrie {
 
 	};
 
+	void setBase(int addr, int base) {
+		if (addr >= 0)
+			pointer[addr].base = base;
+//		else
+//			assert base == 0;	
+	}
+
+	int getBase(int addr) {
+		if (addr < 0)
+			return 0;
+		else
+			return pointer[addr].base;
+	}
+
 	void checkValidity() {
 		int[] checkIndex = getNonzeroCheckIndex();
 
@@ -503,8 +518,8 @@ public class DoubleArrayTrie {
 			System.out.println("baseIndex = " + Utility.toString(baseIndex));
 		}
 
-		assert baseIndex[0] == 0;
-		assert Utility.equals(Arrays.copyOfRange(baseIndex, 1, baseIndex.length), checkIndex);
+//		assert baseIndex[0] == 0;
+		assert Utility.equals(baseIndex, checkIndex);
 
 		int[] usedIndex = getValidUsedIndex();
 		if (debug) {
@@ -530,15 +545,15 @@ public class DoubleArrayTrie {
 		}
 
 		for (int begin : usedIndex) {
-			if (pointer[begin].check != 0) {
+			if (pointer[begin].check >= 0) {
 				if (pointer[begin].check == begin)
 					assert pointer[begin].base < 0;
 				else
-					assert pointer[begin].base > 0;
+					assert pointer[begin].base >= 0;
 			}
 		}
-		assert baseIndex.length == this.root.size();
-		assert usedIndex.length + key.length == baseIndex.length;
+		assert this.root.size() == baseIndex.length + 1;
+		assert usedIndex.length + key.length == baseIndex.length + 1;
 	}
 
 	@Override
@@ -547,18 +562,13 @@ public class DoubleArrayTrie {
 	}
 
 	public static class Pointer {
-		Pointer(int base, int check) {
-			this.base = base;
-			this.check = check;
-		}
-
-		int base;
-		int check;
+		int base = Integer.MIN_VALUE;
+		int check = -1;
 
 		void clear() {
-			base = check = 0;
+			base = Integer.MIN_VALUE;
+			check = -1;
 		}
-
 	}
 
 	Pointer[] pointer;
@@ -586,7 +596,7 @@ public class DoubleArrayTrie {
 			start = 0;
 
 		for (int i = start; i < newSize; ++i)
-			_pointer[i] = new Pointer(0, 0);
+			_pointer[i] = new Pointer();
 
 		pointer = _pointer;
 	}
@@ -612,7 +622,7 @@ public class DoubleArrayTrie {
 			if (crutialState == null)
 				parent.add(currentState);
 			currentState = currentState.addState(ch, index);
-			if (currentState.code == 0 && crutialState == null) {
+			if (currentState.code == -1 && crutialState == null) {
 				crutialState = parent.peek();
 				crutialIndex = i;
 			}
@@ -628,8 +638,7 @@ public class DoubleArrayTrie {
 
 		while (!parent.isEmpty()) {
 			State father = parent.pop();
-			for (Entry<Integer, State> p : father.success.tailMap((int) keyword.charAt(crutialIndex), false)
-					.entrySet()) {
+			for (Entry<Character, State> p : father.success.tailMap(keyword.charAt(crutialIndex), false).entrySet()) {
 				p.getValue().incrementKeyIndex();
 			}
 			--crutialIndex;
@@ -652,10 +661,10 @@ public class DoubleArrayTrie {
 		for (int i = 0; i < keyword.length(); ++i) {
 			char ch = keyword.charAt(i);
 			parent.add(currentState);
-			currentState = currentState.success.get((int) ch);
+			currentState = currentState.success.get(ch);
 		}
 
-		int unicode = currentState.deleteEmit(parent);
+		char unicode = currentState.deleteEmit(parent);
 //		if (crutialIndex >= 0) {
 //			char ch = keyword.charAt(crutialIndex);
 //			update(crutialState, ch);
@@ -665,7 +674,7 @@ public class DoubleArrayTrie {
 //
 		for (;;) {
 			State node = parent.pop();
-			for (Entry<Integer, State> p : node.success.tailMap(unicode, false).entrySet()) {
+			for (Entry<Character, State> p : node.success.tailMap(unicode, false).entrySet()) {
 				p.getValue().decrementKeyIndex();
 			}
 			if (parent.isEmpty())
@@ -674,12 +683,9 @@ public class DoubleArrayTrie {
 		}
 	}
 
-	int try_base(TreeMap<Integer, State> success) {
+	int try_base(TreeMap<Character, State> success) {
 		int begin = 0;
-		int pos = (char) (success.firstKey() + 1);
-		if (pos < nextCheckPos) {
-			pos = nextCheckPos - 1;
-		}
+		int pos = Math.max(success.firstKey(), nextCheckPos) - 1;
 
 //		int nonzero_num = 0;
 		int first = 0;
@@ -687,7 +693,7 @@ public class DoubleArrayTrie {
 		outer: while (true) {
 			++pos;
 
-			if (pos < pointer.length && pointer[pos].check != 0) {
+			if (pos < pointer.length && pointer[pos].check >= 0) {
 //				nonzero_num++;
 				continue;
 			}
@@ -698,19 +704,19 @@ public class DoubleArrayTrie {
 				first = 1;
 			}
 
-			begin = pos - (char) (success.firstKey() + 1);
+			begin = pos - success.firstKey();
 
 			if (used.isRregistered(begin))
 				continue;
 
-			Iterator<Entry<Integer, State>> iterator = success.entrySet().iterator();
+			Iterator<Entry<Character, State>> iterator = success.entrySet().iterator();
 
 			if (iterator.hasNext()) {
 				iterator.next();
 				while (iterator.hasNext()) {
-					Entry<Integer, State> p = iterator.next();
-					int addr = begin + (char) (p.getKey() + 1);
-					if (addr < pointer.length && pointer[addr].check != 0)
+					Entry<Character, State> p = iterator.next();
+					int addr = begin + p.getKey();
+					if (addr < pointer.length && pointer[addr].check >= 0)
 						continue outer;
 				}
 			}
@@ -730,7 +736,7 @@ public class DoubleArrayTrie {
 
 		root.initialize(begin);
 
-		for (Entry<Integer, State> p : root.success.entrySet()) {
+		for (Entry<Character, State> p : root.success.entrySet()) {
 			State node = p.getValue();
 			if (node.success.isEmpty()) {
 				pointer[node.code].base = -node.emit - 1;
@@ -750,29 +756,29 @@ public class DoubleArrayTrie {
 	}
 
 	void recycle(int begin) {
-		if (begin > 0) {
+//		if (begin > 0) {
 //			assert used.isRregistered(begin);
-			used.unregister_key(begin);
-		}
+		used.unregister_key(begin);
+//		}
 	}
 
-	void update(State parent, int word) {
+	void update(State parent, char word) {
 		int code = parent.code;
 		State state = parent.success.get(word);
-		int begin = pointer[code].base;
+		int begin = getBase(code);
 		int pos = 0;
 		boolean need_update_base;
-		if (begin == 0) {
+		if (begin == Integer.MIN_VALUE) {
 			need_update_base = true;
 		} else {
-			assert code == 0 || pointer[code].check != 0;
-			pos = begin + (char) (word + 1);
-			need_update_base = pointer[pos].check != 0;
+			assert code == -1 || pointer[code].check >= 0;
+			pos = begin + word;
+			need_update_base = pointer[pos].check >= 0;
 		}
 
 		if (need_update_base) {
 			begin = parent.update_base();
-			pos = begin + (char) (word + 1);
+			pos = begin + word;
 		}
 
 		if (!used.isRregistered(begin)) {
@@ -781,28 +787,29 @@ public class DoubleArrayTrie {
 
 		state.code = pos;
 
-		assert pointer[pos].base == 0;
+		assert pointer[pos].base == Integer.MIN_VALUE;
 		pointer[pos].check = begin;
 
-		if (pointer[code].base != begin) {
-			this.recycle(pointer[code].base);
+		if (getBase(code) != begin) {
+			this.recycle(getBase(code));
 
-			for (Entry<Integer, State> entry : parent.success.entrySet()) {
-				int key = entry.getKey();
+			for (Entry<Character, State> entry : parent.success.entrySet()) {
+				char key = entry.getKey();
 				if (key != word) {
 					State sibling = entry.getValue();
 					pointer[sibling.code].clear();
 
-					int new_code = begin + (char) (key + 1);
+					int new_code = begin + key;
 					sibling.code = new_code;
-					assert pointer[new_code].check == 0;
+					assert pointer[new_code].check == -1;
 					pointer[new_code].check = begin;
 
 					sibling.update_base();
 				}
 			}
-			pointer[code].base = begin;
-			assert pointer[code].check != 0;
+
+			setBase(code, begin);
+			assert pointer[code].check >= 0;
 		}
 
 		if (state.success.isEmpty()) {
@@ -810,7 +817,7 @@ public class DoubleArrayTrie {
 			assert pointer[pos].check != 0;
 		} else {
 			assert state.success.size() == 1;
-			Entry<Integer, State> entry = state.success.firstEntry();
+			Entry<Character, State> entry = state.success.firstEntry();
 			update(state, entry.getKey());
 		}
 
@@ -820,7 +827,7 @@ public class DoubleArrayTrie {
 	public int[] getNonzeroCheckIndex() {
 		List<Integer> indices = new ArrayList<Integer>();
 		for (int i = 0; i < pointer.length; ++i)
-			if (pointer[i].check != 0) {
+			if (pointer[i].check >= 0) {
 				indices.add(i);
 			}
 
@@ -833,7 +840,7 @@ public class DoubleArrayTrie {
 	public int[] getNonzeroBaseIndex() {
 		List<Integer> indices = new ArrayList<Integer>();
 		for (int i = 0; i < pointer.length; ++i)
-			if (pointer[i].base != 0) {
+			if (pointer[i].base != Integer.MIN_VALUE) {
 				indices.add(i);
 			}
 
@@ -845,7 +852,7 @@ public class DoubleArrayTrie {
 
 	public int[] getValidUsedIndex() {
 		List<Integer> indices = new ArrayList<Integer>();
-		for (int i = 1; i < pointer.length; ++i) {
+		for (int i = 0; i < pointer.length; ++i) {
 			if (!used.isRregistered(i))
 				continue;
 
@@ -873,7 +880,8 @@ public class DoubleArrayTrie {
 		root.fetch(key.length);
 		insert(root);
 
-		shrink();
+		shrink_memory();
+//		shrink();
 	}
 
 	void shrink_memory() {
@@ -909,22 +917,22 @@ public class DoubleArrayTrie {
 		for (; kinder >= 0; --kinder) {
 			int begin = pointer[kinder].check;
 			if (begin > 0) {
-				System.out.println("begin = " + begin);
-				assert begin2base[begin] >= 0;
+//				assert begin2base[begin] >= 0;
 				int parentAddr = begin2base[begin];
 
-				State parent = states[parentAddr];
+				State parent = parentAddr < 0 ? this.root : states[parentAddr];
 				assert parent != null;
 
 				assert parent.code == parentAddr;
-				assert pointer[parent.code].base == begin;
+				assert getBase(parent.code) == begin;
 				if (parent.update_base(states) == begin)
 					break;
+				System.out.println("begin = " + begin);
 			}
 		}
-		
+
 		++kinder;
-		
+
 		if (kinder < pointer.length) {
 			shrink_memory();
 		}
@@ -948,7 +956,7 @@ public class DoubleArrayTrie {
 		int p;
 
 		for (int i = pos; i < len; ++i) {
-			p = b + (int) (keyChars[i]) + 1;
+			p = b + keyChars[i];
 			if (b == pointer[p].check)
 				b = pointer[p].base;
 			else
@@ -981,20 +989,15 @@ public class DoubleArrayTrie {
 	}
 
 	public List<Integer> commonPrefixSearch(String key) {
-		return commonPrefixSearch(key, 0, 0, 0);
-	}
-
-	public List<Integer> commonPrefixSearch(String key, int pos, int len, int nodePos) {
-		if (len <= 0)
-			len = key.length();
-		if (nodePos <= 0)
-			nodePos = 0;
+		int pos = 0;
+		int nodePos = -1;
+		int len = key.length();
 
 		List<Integer> result = new ArrayList<Integer>();
 
 		char[] keyChars = key.toCharArray();
 
-		int b = pointer[nodePos].base;
+		int b = 0;
 		int base_value;
 
 		for (int i = pos; i < len; ++i) {
@@ -1004,17 +1007,16 @@ public class DoubleArrayTrie {
 				result.add(-base_value - 1);
 			}
 
-			if (pointer[b + (int) (keyChars[i]) + 1].check != pointer[nodePos].base) {
-				System.out.printf("%d = base[%d] + '%c'(%d) + 1\n", b + (int) (keyChars[i]) + 1, nodePos, keyChars[i],
+			if (pointer[b + (keyChars[i])].check != b) {
+				System.out.printf("%d = base[%d] + '%c'(%d)\n", b + (keyChars[i]), nodePos, keyChars[i],
 						(int) keyChars[i]);
 
-				System.out.printf("check[%d] = %d\n", b + (int) (keyChars[i]) + 1,
-						pointer[b + (int) (keyChars[i]) + 1].check);
-				System.out.printf("base[%d] = %d\n", nodePos, pointer[nodePos].base);
+				System.out.printf("check[%d] = %d\n", b + (keyChars[i]), pointer[b + (keyChars[i])].check);
+				System.out.printf("base[%d] = %d\n", nodePos, b);
 			}
-			assert pointer[b + (int) (keyChars[i]) + 1].check == pointer[nodePos].base;
+			assert pointer[b + keyChars[i]].check == b;
 
-			nodePos = b + (int) (keyChars[i]) + 1;
+			nodePos = b + (keyChars[i]);
 
 			if (b == pointer[nodePos].check)
 				b = pointer[nodePos].base;
@@ -1062,7 +1064,7 @@ public class DoubleArrayTrie {
 		System.out.println("time cost = " + (System.currentTimeMillis() - start));
 		System.out.println("space cost = " + _dat.pointer.length);
 		String debugWord = null;
-//		debugWord = "一举一动";
+//		debugWord = "万能胶";
 		for (String word : words) {
 			if (debugWord != null && !debugWord.equals(word))
 				continue;

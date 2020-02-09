@@ -16,6 +16,7 @@ import com.util.Utility;
  */
 public class Common {
 	static ArrayList<String> loadDictionary() throws IOException {
+//		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/small.txt");
 		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/dictionary.txt");
 	}
 
@@ -38,9 +39,7 @@ public class Common {
 	public static int countAhoCorasickDoubleArrayTrie() throws Exception {
 
 		// Build a AhoCorasickDoubleArrayTrie implemented by hankcs
-		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>();
-
-		ahoCorasickDoubleArrayTrie.build(dictionaryMap);
+		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(dictionaryMap);
 
 		ArrayList<String> result = new ArrayList<String>();
 
@@ -60,6 +59,7 @@ public class Common {
 
 	static {
 		dictionaryMap = new TreeMap<String, String>();
+//		dictionaryMap = new HashMap<String, String>();
 		try {
 			for (String word : loadDictionary()) {
 				dictionaryMap.put(word, String.format("[%s]", word));
@@ -85,7 +85,7 @@ public class Common {
 		for (Entry<String, String> entry : dictionaryMap.entrySet()) {
 			ahoCorasickNaive.update(entry.getKey(), entry.getValue());
 			if (debug)
-				System.out.println(ahoCorasickNaive.rootState);
+				System.out.println(ahoCorasickNaive.root);
 		}
 		System.out.println("construction finished");
 		return ahoCorasickNaive;
@@ -93,8 +93,7 @@ public class Common {
 
 	static AhoCorasickDoubleArrayTrie<String> naiveUpdate4DoubleArray() throws Exception {
 
-		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>();
-//		ahoCorasickDoubleArrayTrie.build(dictionaryMap);
+		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(dictionaryMap);
 
 		for (Entry<String, String> entry : dictionaryMap.entrySet()) {
 			ahoCorasickDoubleArrayTrie.update(entry.getKey(), entry.getValue());
@@ -117,7 +116,7 @@ public class Common {
 
 		if (debug) {
 			System.out.println("building ahocorasic all at once:");
-			System.out.println(ahoCorasickNaive.rootState);
+			System.out.println(ahoCorasickNaive.root);
 		}
 
 		ArrayList<String> result = new ArrayList<String>();
@@ -140,12 +139,12 @@ public class Common {
 
 		if (debug) {
 			System.out.println("before deletion:");
-			System.out.println(ahoCorasickNaive.rootState);
+			System.out.println(ahoCorasickNaive.root);
 		}
 
 		ahoCorasickNaive.erase(wordsToBeDeleted);
 		if (debug)
-			System.out.println(ahoCorasickNaive.rootState);
+			System.out.println(ahoCorasickNaive.root);
 
 		System.out.println("construction finished");
 		return ahoCorasickNaive;
