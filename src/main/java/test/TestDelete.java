@@ -27,14 +27,14 @@ public class TestDelete {
 			System.out.println("testing word: " + wordsToBeDeleted);
 
 			Trie naiveConstruct = naiveConstruct();
-			trieDynamic.erase(wordsToBeDeleted);
+			trieDynamic.remove(wordsToBeDeleted);
 
 			boolean equals = naiveConstruct.root.equals(trieDynamic.root);
 			assert (equals);
 			assert (naiveConstruct.parseText(text).size() == trieDynamic.parseText(text).size());
 
 			dictionaryMap.put(wordsToBeDeleted, wordsToBeDeleted);
-			trieDynamic.update(wordsToBeDeleted, wordsToBeDeleted);
+			trieDynamic.put(wordsToBeDeleted, wordsToBeDeleted);
 
 			equals = trieWhole.root.equals(trieDynamic.root);
 			assert (equals);

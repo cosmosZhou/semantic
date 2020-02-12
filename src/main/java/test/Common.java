@@ -2,10 +2,10 @@ package test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import org.ahocorasick.trie.Emit;
 import org.ahocorasick.trie.Trie;
 
 import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
@@ -16,8 +16,8 @@ import com.util.Utility;
  */
 public class Common {
 	static ArrayList<String> loadDictionary() throws IOException {
-//		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/small.txt");
-		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/dictionary.txt");
+		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/small.txt");
+//		return loadDictionary(Utility.corpusDirectory() + "ahocorasick/dictionary.txt");
 	}
 
 	static ArrayList<String> loadDictionary(String path) throws IOException {
@@ -39,7 +39,8 @@ public class Common {
 	public static int countAhoCorasickDoubleArrayTrie() throws Exception {
 
 		// Build a AhoCorasickDoubleArrayTrie implemented by hankcs
-		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(dictionaryMap);
+		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(
+				dictionaryMap);
 
 		ArrayList<String> result = new ArrayList<String>();
 
@@ -53,7 +54,7 @@ public class Common {
 		return result.size();
 	}
 
-	public static TreeMap<String, String> dictionaryMap;
+	public static Map<String, String> dictionaryMap;
 	public static String text;
 	static boolean debug = false;
 
@@ -83,7 +84,7 @@ public class Common {
 		Trie ahoCorasickNaive = new Trie();
 
 		for (Entry<String, String> entry : dictionaryMap.entrySet()) {
-			ahoCorasickNaive.update(entry.getKey(), entry.getValue());
+			ahoCorasickNaive.put(entry.getKey(), entry.getValue());
 			if (debug)
 				System.out.println(ahoCorasickNaive.root);
 		}
@@ -93,7 +94,8 @@ public class Common {
 
 	static AhoCorasickDoubleArrayTrie<String> naiveUpdate4DoubleArray() throws Exception {
 
-		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(dictionaryMap);
+		AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(
+				dictionaryMap);
 
 		for (Entry<String, String> entry : dictionaryMap.entrySet()) {
 			ahoCorasickDoubleArrayTrie.update(entry.getKey(), entry.getValue());
@@ -108,31 +110,6 @@ public class Common {
 		return new Trie(dictionaryMap);
 	}
 
-	public static int countNaiveConstruct() throws Exception {
-
-		Trie ahoCorasickNaive = new Trie(dictionaryMap);
-
-//		System.out.println(ahoCorasickNaive.rootState);
-
-		if (debug) {
-			System.out.println("building ahocorasic all at once:");
-			System.out.println(ahoCorasickNaive.root);
-		}
-
-		ArrayList<String> result = new ArrayList<String>();
-		for (Emit emit : ahoCorasickNaive.parseText(text)) {
-//			int begin = emit.getStart();
-//			int end = emit.getEnd();
-			String value = emit.value;
-
-//			System.out.printf("%s = %s\n", text.substring(begin, end), value);
-			result.add(value);
-		}
-//		System.out.println(ahoCorasickNaive.rootState);
-
-		return result.size();
-	}
-
 	static Trie naiveDelete(String wordsToBeDeleted) throws Exception {
 
 		Trie ahoCorasickNaive = new Trie(dictionaryMap);
@@ -142,7 +119,7 @@ public class Common {
 			System.out.println(ahoCorasickNaive.root);
 		}
 
-		ahoCorasickNaive.erase(wordsToBeDeleted);
+		ahoCorasickNaive.remove(wordsToBeDeleted);
 		if (debug)
 			System.out.println(ahoCorasickNaive.root);
 

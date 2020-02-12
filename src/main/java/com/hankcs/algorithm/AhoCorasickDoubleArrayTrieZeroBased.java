@@ -39,8 +39,6 @@ import java.util.TreeSet;
 
 import org.ahocorasick.trie.Trie;
 
-import com.util.Utility;
-
 import test.Common;
 
 /**
@@ -744,9 +742,9 @@ public class AhoCorasickDoubleArrayTrieZeroBased<V> implements Serializable {
 		l = new int[v.length];
 		Set<String> keySet = map.keySet();
 		addAllKeyword(keySet);
-		
+
 		assert keySet.size() == v.length;
-		
+
 		buildDoubleArrayTrie();
 		used = null;
 		constructFailureStates();
@@ -781,7 +779,7 @@ public class AhoCorasickDoubleArrayTrieZeroBased<V> implements Serializable {
 	 */
 	private void addKeyword(String keyword, int index) {
 		State currentState = this.rootState;
-		for (char character : Utility.toCharArray(keyword)) {
+		for (char character : keyword.toCharArray()) {
 			currentState = currentState.addState(character);
 		}
 		currentState.addEmit(index);
@@ -999,7 +997,7 @@ public class AhoCorasickDoubleArrayTrieZeroBased<V> implements Serializable {
 		Map<String, String> dictionaryMap = Common.dictionaryMap;
 
 		// Build a ahoCorasickNaive implemented by robert-bor
-		Trie ahoCorasickNaive = new Trie(dictionaryMap);
+		Trie<String> ahoCorasickNaive = new Trie<String>(dictionaryMap);
 
 		// Build a AhoCorasickDoubleArrayTrie implemented by hankcs
 		AhoCorasickDoubleArrayTrieZeroBased<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrieZeroBased<String>(

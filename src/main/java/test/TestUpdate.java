@@ -26,10 +26,6 @@ public class TestUpdate {
 		return new Utility.Text(path).fetchContent();
 	}
 
-	public void testNaiveConstruct() throws Exception {
-		assert(countNaiveConstruct() == countAhoCorasickDoubleArrayTrie());
-	}
-
 	static public void testSearchTrie() throws Exception {
 		Trie naiveConstruct = naiveConstruct();
 		Trie naiveUpdate = naiveUpdate();

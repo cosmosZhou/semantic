@@ -48,6 +48,8 @@ public class Utility {
 	public static void main(String[] args) throws Exception {
 		char[] arr = new char[16];
 		System.out.println(arr.length);
+
+		testCharArray();
 	}
 
 	static public String workingDirectory = "../";
@@ -1633,6 +1635,10 @@ public class Utility {
 		return str[str.length - 1];
 	}
 
+	public static int last(int[] str) {
+		return str[str.length - 1];
+	}
+
 	public static <T> T last(List<T> str) {
 		return str.get(str.size() - 1);
 	}
@@ -1642,6 +1648,34 @@ public class Utility {
 		_Ty[] adverbNew = (_Ty[]) Array.newInstance(adverb.getClass().getComponentType(), adverb.length + 1);
 		System.arraycopy(adverb, 0, adverbNew, 0, adverb.length);
 		adverbNew[adverb.length] = element;
+		return adverbNew;
+	}
+
+	static public int[] copier(int[] adverb, int element) {
+		int[] adverbNew = new int[adverb.length + 1];
+		System.arraycopy(adverb, 0, adverbNew, 0, adverb.length);
+		adverbNew[adverb.length] = element;
+		return adverbNew;
+	}
+
+	static public <_Ty> _Ty[] copierSauf(_Ty[] adverb, int i) {
+		@SuppressWarnings("unchecked")
+		_Ty[] adverbNew = (_Ty[]) Array.newInstance(adverb.getClass().getComponentType(), adverb.length - 1);
+		int index = 0;
+		for (int j = 0; j < adverb.length; ++j) {
+			if (i != j)
+				adverbNew[index++] = adverb[j];
+		}
+		return adverbNew;
+	}
+
+	static public int[] copierSauf(int[] adverb, int i) {
+		int[] adverbNew = new int[adverb.length - 1];
+		int index = 0;
+		for (int j = 0; j < adverb.length; ++j) {
+			if (i != j)
+				adverbNew[index++] = adverb[j];
+		}
 		return adverbNew;
 	}
 
@@ -1745,7 +1779,24 @@ public class Utility {
 
 	}
 
-	public static CharArray toCharArray(String str) {
+	static CharArray toCharArray(String str) {
 		return new CharArray(str);
 	}
+
+	public static void testCharArray() throws IOException {
+		String text = new Utility.Text(Utility.corpusDirectory() + "ahocorasick/text.txt").fetchContent();
+		text += text + text;
+		long start = System.currentTimeMillis();
+		for (char ch : text.toCharArray()) {
+			++ch;
+		}
+		System.out.println("time cost = " + (System.currentTimeMillis() - start));
+
+		start = System.currentTimeMillis();
+		for (char ch : toCharArray(text)) {
+			++ch;
+		}
+		System.out.println("time cost = " + (System.currentTimeMillis() - start));
+	}
+
 }

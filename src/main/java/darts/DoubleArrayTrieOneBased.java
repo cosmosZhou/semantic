@@ -63,8 +63,12 @@ public class DoubleArrayTrieOneBased {
 			return nextState;
 		}
 
+		boolean is_null_terminator() {
+			return success.isEmpty();
+		}
+
 		void insert() {
-			if (success.isEmpty())
+			if (is_null_terminator())
 				return;
 
 			int begin = try_base_with_optimal_start_point();
@@ -78,7 +82,7 @@ public class DoubleArrayTrieOneBased {
 			for (Entry<Integer, State> p : success.entrySet()) {
 				State state = p.getValue();
 				int index = begin + (char) (p.getKey() + 1);
-				if (state.success.isEmpty())
+				if (state.is_null_terminator())
 					node[index].base = state.index;
 
 				state.index = index;
@@ -89,7 +93,7 @@ public class DoubleArrayTrieOneBased {
 				state.insert();
 			}
 
-			check_validity();
+			checkValidity();
 		}
 
 		void copy2array(State states[]) {
@@ -242,7 +246,7 @@ public class DoubleArrayTrieOneBased {
 			for (Entry<Integer, State> p : success.entrySet()) {
 				State state = p.getValue();
 				state.incrementKeyIndex();
-				if (state.success.isEmpty()) {
+				if (state.is_null_terminator()) {
 					--node[state.index].base;
 					assert node[state.index].check != 0;
 				}
@@ -255,7 +259,7 @@ public class DoubleArrayTrieOneBased {
 				state.decrementKeyIndex();
 				assert state.index == node[index].base + (char) (p.getKey() + 1);
 				assert node[state.index].check == node[index].base;
-				if (state.success.isEmpty()) {
+				if (state.is_null_terminator()) {
 					++node[state.index].base;
 					assert node[state.index].check != 0;
 				}
@@ -274,7 +278,7 @@ public class DoubleArrayTrieOneBased {
 
 		TreeMap<Integer, State> success = new TreeMap<Integer, State>();
 
-		void check_validity() {
+		void checkValidity() {
 			if (!debug)
 				return;
 			int begin = node[index].base;
@@ -287,7 +291,7 @@ public class DoubleArrayTrieOneBased {
 			System.out.printf("base[%d] = %d", index, begin);
 
 			for (State state : success.values()) {
-				if (state.success.isEmpty()) {
+				if (state.is_null_terminator()) {
 					System.out.printf(", \tbase[%d] = key[%d] = %s", state.index, state.emit(), key[state.emit()]);
 				}
 			}
@@ -318,7 +322,7 @@ public class DoubleArrayTrieOneBased {
 						Entry<Integer, State> entry = iterator.next();
 						State node = entry.getValue();
 						node.incrementKeyIndex();
-						node.check_validity();
+						node.checkValidity();
 					}
 
 				} else {
@@ -347,7 +351,7 @@ public class DoubleArrayTrieOneBased {
 
 						state.index = code;
 						state.incrementKeyIndex();
-						state.check_validity();
+						state.checkValidity();
 					}
 					occupy(begin);
 				}
@@ -355,7 +359,7 @@ public class DoubleArrayTrieOneBased {
 				leaf.index = begin;
 				leaf.emit(emit);
 
-				this.check_validity();
+				this.checkValidity();
 			}
 		}
 
@@ -373,7 +377,7 @@ public class DoubleArrayTrieOneBased {
 					while (iterator.hasNext()) {
 						Entry<Integer, State> entry = iterator.next();
 						State node = entry.getValue();
-						node.check_validity();
+						node.checkValidity();
 					}
 
 				} else {
@@ -401,7 +405,7 @@ public class DoubleArrayTrieOneBased {
 							node[state.index].clear();
 
 						state.index = code;
-						state.check_validity();
+						state.checkValidity();
 					}
 					occupy(begin);
 				}
@@ -409,7 +413,7 @@ public class DoubleArrayTrieOneBased {
 				leaf.index = begin;
 				leaf.emit(key.length - 1);
 
-				this.check_validity();
+				this.checkValidity();
 			}
 		}
 
@@ -420,7 +424,7 @@ public class DoubleArrayTrieOneBased {
 			assert node[leaf.index].base + leaf.emit() == -1;
 			node[leaf.index].clear();
 
-			if (success.isEmpty()) {
+			if (is_null_terminator()) {
 				State orphan = this;
 
 				while (!parent.isEmpty()) {
@@ -439,7 +443,7 @@ public class DoubleArrayTrieOneBased {
 
 					father.success.remove(unicode);
 
-					if (father.success.isEmpty()) {
+					if (father.is_null_terminator()) {
 						orphan = father;
 						parent.pop();
 					} else
@@ -514,7 +518,7 @@ public class DoubleArrayTrieOneBased {
 //				if (state.failure != null && state.failure.depth != 0) {
 //					node.value += String.valueOf(state.failure.depth);
 //				}
-//				if (state.success.isEmpty()) {
+//				if (state.is_null_terminator()) {
 //					newNode.value += '+';
 //				} else {
 				node.value = value + node.value;
@@ -641,7 +645,10 @@ public class DoubleArrayTrieOneBased {
 	int nextCheckPos;
 	State root;
 
-	boolean isAscendingOrder;
+//	order > 0 means ascending order
+//	order < 0 means descending order
+//	order = 0 means random order	
+	int order;
 
 	void resize(int newSize) {
 		assert node == null || newSize > node.length;
@@ -663,7 +670,7 @@ public class DoubleArrayTrieOneBased {
 	}
 
 	void insert(String keyword) {
-		if (isAscendingOrder) {
+		if (order < 0) {
 			// precondition: key is sorted in ascending order
 			// insert a new keyword, while maintaining the ascending order.
 			int index = Arrays.binarySearch(key, keyword);
@@ -719,14 +726,14 @@ public class DoubleArrayTrieOneBased {
 			State currentState = this.root;
 			State crutialState = null;
 			int crutialIndex = -1;
-			Stack<State> parent = new Stack<State>();
+			State parent = null;
 			for (int i = 0; i < keyword.length(); ++i) {
 				char ch = keyword.charAt(i);
 				if (crutialState == null)
-					parent.add(currentState);
+					parent = currentState;
 				currentState = currentState.addState(ch);
 				if (currentState.index == 0 && crutialState == null) {
-					crutialState = parent.peek();
+					crutialState = parent;
 					crutialIndex = i;
 				}
 			}
@@ -740,7 +747,7 @@ public class DoubleArrayTrieOneBased {
 	}
 
 	void remove(String keyword) {
-		if (isAscendingOrder) {
+		if (order < 0) {
 			// precondition: key is sorted in ascending order
 			// remove the keyword, but maintain the original natural order.
 
@@ -913,7 +920,7 @@ public class DoubleArrayTrieOneBased {
 				assert node[code].check != 0;
 			}
 
-			if (state.success.isEmpty()) {
+			if (state.is_null_terminator()) {
 				state.emit(emit);
 				break;
 			}
@@ -992,16 +999,16 @@ public class DoubleArrayTrieOneBased {
 	 */
 	void addKeyword(String keyword, int index) {
 		State currentState = this.root;
-		for (char character : Utility.toCharArray(keyword)) {
+		for (char character : keyword.toCharArray()) {
 			currentState = currentState.addState(character);
 		}
-//		currentState.addEmit(index);
 		currentState.appendNullTerminator(index);
 	}
 
 	public DoubleArrayTrieOneBased(TreeSet<String> key) {
 		this(Utility.toArray(key));
-		isAscendingOrder = true;
+		order = key.comparator().compare("1", "2");
+
 	}
 
 	public DoubleArrayTrieOneBased(String[] key) {
@@ -1059,14 +1066,14 @@ public class DoubleArrayTrieOneBased {
 				State parent = states[parentAddr];
 				assert parent != null;
 
-				parent.check_validity();
+				parent.checkValidity();
 
 				assert parent.index == parentAddr;
 				assert node[parent.index].base == begin;
 				if (parent.update_base(states, begin2base) == begin)
 					break;
 				System.out.println("begin = " + begin);
-				parent.check_validity();
+				parent.checkValidity();
 			}
 		}
 
@@ -1215,10 +1222,12 @@ public class DoubleArrayTrieOneBased {
 			System.out.println("removing word: " + word);
 
 			_dat.remove(word);
+			_dat.remove(word);
 			if (debug) {
 				System.out.println(_dat);
 			}
 			_dat.checkValidity();
+			_dat.insert(word);
 			_dat.insert(word);
 			if (debug) {
 				System.out.println(_dat);

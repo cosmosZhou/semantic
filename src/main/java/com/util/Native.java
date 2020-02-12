@@ -1,6 +1,6 @@
 package com.util;
 
-import org.ahocorasick.trie.Emit;
+import org.ahocorasick.trie.Trie;
 
 public class Native {
 	public native static void displayHelloWorld();
@@ -34,7 +34,7 @@ public class Native {
 
 	public native static void ahocorasickTest();
 	
-	public native static Emit[] parseText(String text);
+	public native static Trie.Hit[] parseText(String text);
 	
 	static {
 		String LD_LIBRARY_PATH = System.getProperty("java.library.path");
