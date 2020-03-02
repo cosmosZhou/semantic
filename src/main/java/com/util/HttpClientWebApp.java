@@ -6,18 +6,21 @@ import java.io.UnsupportedEncodingException;
 
 import java.net.URLEncoder;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.log4j.Logger;
 
 public class HttpClientWebApp {
-//	HttpClient httpClient = new HttpClient();
-	HttpClient httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
+	HttpClient httpClient = new HttpClient();
+//	HttpClient httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
 
 	enum Environment {
 		local, test, product
@@ -26,24 +29,22 @@ public class HttpClientWebApp {
 //	static Environment environment = Environment.test;
 	static Environment environment = Environment.local;
 	// static Environment environment = Environment.product;
-	static String server;
-	static {
-		switch (environment) {
-		case local:
-			server = "http://127.0.0.1:8000/";
-			break;
-		case test:
-			server = "http://192.168.2.39:8000/";
-			break;
-		case product:
-			server = "http://172.16.0.7:7005/";
-			break;
-		}
-	}
+	String url;
 
 	public HttpClientWebApp() {
 		httpClient.setConnectionTimeout(50000);
 		httpClient.setTimeout(50000);
+		switch (environment) {
+		case local:
+			url = "http://127.0.0.1:8000/";
+			break;
+		case test:
+			url = "http://192.168.2.39:8000/";
+			break;
+		case product:
+			url = "http://172.16.0.7:7005/";
+			break;
+		}
 	}
 
 	static class Parameter {
@@ -75,7 +76,7 @@ public class HttpClientWebApp {
 	}
 
 	String postMethod(String function, Parameter[] args, boolean bEncode) throws HttpException, IOException {
-		PostMethod method = new PostMethod(server + function);
+		PostMethod method = new PostMethod(url + function);
 		try {
 			for (Parameter para : args) {
 
@@ -98,8 +99,27 @@ public class HttpClientWebApp {
 		return result;
 	}
 
+	String getMethod(Map<String, String> parameters) throws HttpException, IOException {
+		System.out.println("url = " + url);
+		System.out.println("parameters = " + Utility.toString(parameters));
+		ArrayList<String> list = new ArrayList<String>();
+		for (Entry<String, String> p : parameters.entrySet()) {
+			list.add(String.format("%s=%s", p.getKey(), p.getValue()));
+		}
+		GetMethod method = new GetMethod(String.format("%s?%s", url, String.join("&", list)));
+
+		String result = null;
+
+		httpClient.executeMethod(method);
+		result = method.getResponseBodyAsString();
+
+		method.releaseConnection();
+
+		return result;
+	}
+
 	public String postMethod(String function, Map<String, String> data) throws HttpException, IOException {
-		PostMethod method = new PostMethod(server + function);
+		PostMethod method = new PostMethod(url + function);
 
 		for (Map.Entry<String, String> p : data.entrySet()) {
 			method.addParameter(p.getKey(), p.getValue());
@@ -273,7 +293,25 @@ public class HttpClientWebApp {
 
 		// webApp.classifyTopic();
 		// log.info("regex = " + CWSTagger.InstanceReader.regex);
-		instance.ner("播放一首寂寞沙洲冷", "music", "");
+//		instance.ner("播放一首寂寞沙洲冷", "music", "");
+		
+		long start = System.currentTimeMillis();
+		instance.url = "http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/select";
+//		
+		HashMap<String, String> parameters = new HashMap<String, String>();
+
+		String keyword = "medicine";
+		parameters.put("fl", "TTL,ABST");
+		parameters.put("q", String.format("TTL:%s%%20OR%%20ABST:%s", keyword, keyword));
+		parameters.put("rows", "10000");
+
+		String result = instance.getMethod(parameters);
+		
+		long end = System.currentTimeMillis();
+		System.out.println("time cost in solr = " + (end - start));
+		
+//		System.out.println(result);
+
 	}
 
 	public static Logger log = Logger.getLogger(HttpClientWebApp.class);

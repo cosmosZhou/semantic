@@ -20,6 +20,7 @@ import com.deeplearning.CWSTagger;
 import com.deeplearning.NERTaggerDict;
 import com.deeplearning.Service;
 import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
+import com.patsnap.core.analysis.manager.CarrotManager;
 import com.util.HttpClientWebApp;
 import com.util.Native;
 import com.util.Utility;
@@ -331,7 +332,7 @@ public class Algorithm {
 	@Path("ahocorasick/test")
 	@Produces("text/plain;charset=utf-8")
 	public String ahocorasick_test() throws Exception {
-		String path2Dictionary = Utility.workingDirectory + "corpus/ahocorasick/dictionary.txt";
+		String path2Dictionary = Utility.workingDirectory + "corpus/ahocorasick/cn/dictionary.txt";
 
 		TreeMap<String, String> dictionaryMap = new TreeMap<String, String>();
 
@@ -343,7 +344,7 @@ public class Algorithm {
 
 		Trie ahoCorasickNaive = new Trie(dictionaryMap);
 
-		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/text.txt").fetchContent();
+		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/cn/text.txt").fetchContent();
 
 		System.out.println("text.length() = " + text.length());
 		long countNative;
@@ -373,7 +374,8 @@ public class Algorithm {
 		}
 		long countDoubleArray;
 		{
-			AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(dictionaryMap);
+			AhoCorasickDoubleArrayTrie<String> ahoCorasickDoubleArrayTrie = new AhoCorasickDoubleArrayTrie<String>(
+					dictionaryMap);
 
 			long start = System.currentTimeMillis();
 			countDoubleArray = ahoCorasickDoubleArrayTrie.parseText(text).size();
@@ -400,6 +402,13 @@ public class Algorithm {
 
 		Native.ahocorasickTest();
 		return "true";
+	}
+
+	@GET
+	@Path("carrot2/ling3g/{keyword}")
+	@Produces("text/plain;charset=utf-8")
+	public String carrot2_ling3g(@PathParam("keyword") String keyword) throws Exception {
+		return Utility.jsonify(CarrotManager.instance.getClusteringResult(keyword));
 	}
 
 }
