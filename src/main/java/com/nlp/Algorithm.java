@@ -1,5 +1,6 @@
 package com.nlp;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.TreeMap;
@@ -15,13 +16,19 @@ import javax.ws.rs.core.Context;
 
 import org.ahocorasick.trie.Trie;
 import org.apache.commons.lang.SystemUtils;
+import org.carrot2.core.LanguageCode;
+import org.ini4j.ConfigParser.InterpolationException;
+import org.ini4j.ConfigParser.NoOptionException;
+import org.ini4j.ConfigParser.NoSectionException;
 
 import com.deeplearning.CWSTagger;
 import com.deeplearning.NERTaggerDict;
 import com.deeplearning.Service;
 import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
 import com.patsnap.core.analysis.manager.CarrotManager;
+import com.servlet.Python;
 import com.util.HttpClientWebApp;
+import com.util.MySQL;
 import com.util.Native;
 import com.util.Utility;
 
@@ -342,7 +349,7 @@ public class Algorithm {
 
 		HashMap<String, Object> json = new HashMap<String, Object>();
 
-		Trie ahoCorasickNaive = new Trie(dictionaryMap);
+		Trie<String> ahoCorasickNaive = new Trie<String>(dictionaryMap);
 
 		String text = new Utility.Text(Utility.workingDirectory + "corpus/ahocorasick/cn/text.txt").fetchContent();
 
@@ -405,10 +412,88 @@ public class Algorithm {
 	}
 
 	@GET
-	@Path("carrot2/ling3g/{keyword}")
+	@Path("carrot2/ling3g/{language}/{keyword}")
 	@Produces("text/plain;charset=utf-8")
-	public String carrot2_ling3g(@PathParam("keyword") String keyword) throws Exception {
-		return Utility.jsonify(CarrotManager.instance.getClusteringResult(keyword));
+	public String carrot2_ling3g(@PathParam("language") String language, @PathParam("keyword") String keyword)
+			throws Exception {
+		return Utility.jsonify(CarrotManager.instance.getClusteringResult(language, keyword, 10000));
 	}
 
+	@SuppressWarnings("unchecked")
+	@POST
+	@Path("carrot2/ling3g")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String carrot2_ling3g(@Context HttpServletRequest request) throws Exception {
+		String language = request.getParameter("language");
+		String text = null;
+		if (language != null) {
+			text = request.getReader().readLine();
+			language = "en";
+		} else {
+			text = request.getParameter("text");
+		}
+
+		return Utility.jsonify(CarrotManager.instance.getClusteringResult(LanguageCode.forISOCode(language),
+				Utility.dejsonify(text, ArrayList.class)));
+	}
+
+	@GET
+	@Path("mysql/{sql}")
+	@Produces("text/plain;charset=utf-8")
+	public String mysql(@PathParam("sql") String mysql) {
+		if (mysql.startsWith("select"))
+			return Utility.jsonify(MySQL.instance.select(mysql));
+		return String.valueOf(MySQL.instance.execute(mysql));
+	}
+
+	@POST
+	@Path("mysql")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String mysql(@Context HttpServletRequest request) throws Exception {
+		String mysql = request.getReader().readLine();
+		System.out.println("mysql = " + mysql);
+
+		if (mysql.startsWith("select"))
+			return Utility.jsonify(MySQL.instance.select(mysql));
+		return String.valueOf(MySQL.instance.execute(mysql));
+	}
+
+	@POST
+	@Path("mysql/batch")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String mysql_batch(@Context HttpServletRequest request) throws Exception {
+		String sql = request.getReader().readLine();
+		System.out.println("mysql_batch: " + sql);
+		String[] statements = Utility.dejsonify(sql, String[].class);
+
+		return String.valueOf(MySQL.instance.execute(statements));
+	}
+
+	@POST
+	@Path("keyword")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String keyword(@Context HttpServletRequest request) throws Exception {
+		String text = request.getParameter("text");
+		switch (request.getParameter("lang").toLowerCase()) {
+		case "cn":
+			return String.valueOf(Native.keywordCN(text));
+		case "en":
+			return String.valueOf(Native.keywordEN(text));
+		default:
+			return null;
+		}
+	}
+
+	@GET
+	@Path("training/{table}")
+	@Produces("text/plain;charset=utf-8")
+	public String training(@PathParam("table") String table)
+			throws NoSectionException, NoOptionException, InterpolationException, IOException, InterruptedException {
+		Python.training(table);
+		return "true";
+	}
 }

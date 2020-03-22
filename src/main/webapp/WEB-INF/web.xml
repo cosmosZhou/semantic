@@ -1,22 +1,36 @@
-<!DOCTYPE web-app PUBLIC
- "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
- "http://java.sun.com/dtd/web-app_2_3.dtd" >
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee   
+    http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
 
-<web-app>
+	<welcome-file-list>
+		<welcome-file>index.jsp</welcome-file>
+		<welcome-file>index.html</welcome-file>
+	</welcome-file-list>
 
-	<display-name>Archetype Created Web Application</display-name>
+	<servlet>
+		<servlet-name>JavaServlet</servlet-name>
+		<servlet-class>com.servlet.JavaServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>JavaServlet</servlet-name>
+		<url-pattern>/JavaServlet</url-pattern>
+	</servlet-mapping>
+
+	<servlet>
+		<servlet-name>JavaHttpServlet</servlet-name>
+		<servlet-class>com.servlet.JavaHttpServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>JavaHttpServlet</servlet-name>
+		<url-pattern>/JavaHttpServlet</url-pattern>
+	</servlet-mapping>
 
 	<context-param>
 		<param-name>resteasy.resources</param-name>
 		<param-value>com.nlp.Algorithm</param-value>
 	</context-param>
-
-
-	<listener>
-		<listener-class>
-			org.jboss.resteasy.plugins.server.servlet.ResteasyBootstrap
-		</listener-class>
-	</listener>
 
 	<servlet>
 		<servlet-name>resteasy-servlet</servlet-name>
@@ -24,7 +38,7 @@
 	</servlet>
 	<servlet-mapping>
 		<servlet-name>resteasy-servlet</servlet-name>
-		<url-pattern>/*</url-pattern>
+		<url-pattern>/algorithm/*</url-pattern>
 	</servlet-mapping>
 
 

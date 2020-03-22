@@ -47,10 +47,11 @@ public class DoubleArrayTrieOriginal {
 		int depth;
 		int left;
 		int right;
+
 		int code() {
 			return unicode + 1;
 		}
-		
+
 		List<Node> siblings = new ArrayList<Node>();
 
 		void fetch() {
@@ -334,31 +335,21 @@ public class DoubleArrayTrieOriginal {
 		check = new int[size];
 		base = new int[size];
 
-		DataInputStream is = null;
-		try {
-			is = new DataInputStream(new BufferedInputStream(new FileInputStream(file), BUF_SIZE));
+		try (DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(file), BUF_SIZE))) {
 			for (int i = 0; i < size; i++) {
 				base[i] = is.readInt();
 				check[i] = is.readInt();
 			}
-		} finally {
-			if (is != null)
-				is.close();
 		}
 	}
 
 	public void save(String fileName) throws IOException {
-		DataOutputStream out = null;
-		try {
-			out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(fileName)));
+		try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(fileName)))) {
 			for (int i = 0; i < size; i++) {
 				out.writeInt(base[i]);
 				out.writeInt(check[i]);
 			}
 			out.close();
-		} finally {
-			if (out != null)
-				out.close();
 		}
 	}
 

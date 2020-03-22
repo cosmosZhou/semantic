@@ -1,8 +1,16 @@
 package com.util;
 
 import org.ahocorasick.trie.Trie;
-
+//javah -jni com.util.Native
 public class Native {
+	public native static double segmentCN(String text);
+	
+	public native static double keywordCN(String text);
+	public native static double keywordEN(String text);
+
+	public native static String infixCN(String text);
+	public native static String infixEN(String text);
+
 	public native static void displayHelloWorld();
 
 	// native method that prints a prompt and reads a line
@@ -33,9 +41,10 @@ public class Native {
 	public native static void initializeAhocorasickDictionary(String pwd);
 
 	public native static void ahocorasickTest();
-	
+
+	@SuppressWarnings("rawtypes")
 	public native static Trie.Hit[] parseText(String text);
-	
+
 	static {
 		String LD_LIBRARY_PATH = System.getProperty("java.library.path");
 
@@ -43,6 +52,9 @@ public class Native {
 
 		try {
 			System.loadLibrary("eigen");
+			Native.initializeH5Model(PropertyConfig.get("model", "pwd"));
+			Native.keywordCN("");
+			Native.keywordEN("");
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -74,7 +86,8 @@ public class Native {
 		System.out.println("x = " + x);
 		System.out.println("relu(x) = " + relu(x));
 
-		System.out.println("gcdlong(-10011001100110011001100110011001, -1171171171171171179) = " + gcdlong(-10011001, -117));
+		System.out.println(
+				"gcdlong(-10011001100110011001100110011001, -1171171171171171179) = " + gcdlong(-10011001, -117));
 		Utility.Timer timer = new Utility.Timer();
 		long a = -1001100118999999999l, b = -1171171171888888888l;
 		int size = 10000000;
@@ -90,7 +103,7 @@ public class Native {
 			gcdlongtemplate(a, b);
 		}
 		timer.report();
-		
+
 		int _a = -1001100118, _b = -1171171171;
 		System.out.println("gcdint(-10011001, -117) = " + gcdint(-10011001, -117));
 		timer.start();
@@ -105,6 +118,8 @@ public class Native {
 			gcdinttemplate(_a, _b);
 		}
 		timer.report();
-		
+
 	}
 }
+//https://dev.mysql.com/doc/refman/8.0/en/adding-udf.html
+//https://www.codeproject.com/Articles/15643/MySQL-User-Defined-Functions

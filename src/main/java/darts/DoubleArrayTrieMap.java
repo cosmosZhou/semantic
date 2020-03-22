@@ -252,33 +252,33 @@ public class DoubleArrayTrieMap {
 			nextCheckPos = pos;
 
 		used[begin] = true;
-		size = Math.max(size, begin + (char)(siblings.lastKey() + 1) + 1);
+		size = Math.max(size, begin + (char) (siblings.lastKey() + 1) + 1);
 
 		for (Entry<Integer, Node> p : siblings.entrySet()) {
-			check[begin + (char)(p.getKey() + 1)] = begin;
+			check[begin + (char) (p.getKey() + 1)] = begin;
 		}
 
 		for (Entry<Integer, Node> p : siblings.entrySet()) {
 			Node node = p.getValue();
 			TreeMap<Integer, Node> new_siblings = node.success;
-			
+
 			if (new_siblings.isEmpty()) {
-				base[begin + (char)(p.getKey() + 1)] = -node.emit - 1;
+				base[begin + (char) (p.getKey() + 1)] = -node.emit - 1;
 				progress++;
 			} else {
-				insert(begin + (char)(p.getKey() + 1), new_siblings);
+				insert(begin + (char) (p.getKey() + 1), new_siblings);
 			}
 		}
 
 		base[code] = begin;
 		for (Entry<Integer, Node> p : siblings.entrySet()) {
-			System.out.printf("check[%d] = ", begin + (char)(p.getKey() + 1));
+			System.out.printf("check[%d] = ", begin + (char) (p.getKey() + 1));
 		}
 		System.out.printf("base[%d] = %d", code, begin);
 		for (Entry<Integer, Node> p : siblings.entrySet()) {
 			Node node = p.getValue();
 			if (node.success.isEmpty()) {
-				System.out.printf(", \tbase[%d] = %s", begin + (char)(p.getKey() + 1), key[node.emit]);
+				System.out.printf(", \tbase[%d] = %s", begin + (char) (p.getKey() + 1), key[node.emit]);
 			}
 		}
 		System.out.println();
@@ -338,31 +338,21 @@ public class DoubleArrayTrieMap {
 		check = new int[size];
 		base = new int[size];
 
-		DataInputStream is = null;
-		try {
-			is = new DataInputStream(new BufferedInputStream(new FileInputStream(file), BUF_SIZE));
+		try (DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(file), BUF_SIZE))) {
 			for (int i = 0; i < size; i++) {
 				base[i] = is.readInt();
 				check[i] = is.readInt();
 			}
-		} finally {
-			if (is != null)
-				is.close();
 		}
 	}
 
 	public void save(String fileName) throws IOException {
-		DataOutputStream out = null;
-		try {
-			out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(fileName)));
+		try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(fileName)))) {
 			for (int i = 0; i < size; i++) {
 				out.writeInt(base[i]);
 				out.writeInt(check[i]);
 			}
 			out.close();
-		} finally {
-			if (out != null)
-				out.close();
 		}
 	}
 

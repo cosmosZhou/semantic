@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Vector;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -513,7 +514,7 @@ public class Utility {
 
 	public static Logger log = Logger.getLogger(Utility.class);
 
-	static public String convertSegmentationToOriginal(String[] arr) {
+	static public String convertToOriginal(String[] arr) {
 		String str = "";
 		int i = 0;
 		for (; i < arr.length - 1; ++i) {
@@ -542,7 +543,7 @@ public class Utility {
 				break;
 		}
 
-		return str.trim().split("\\s+");
+		return str.trim().split("[\\u2002\\s]+");
 	}
 
 	static public String convertFromSegmentation(String[] arr) {
@@ -841,12 +842,24 @@ public class Utility {
 		return new DoubleMatrix(1, x.rows, arr);
 	}
 
-	static public String jsonify(Object object) throws JsonProcessingException {
-		return new ObjectMapper().writeValueAsString(object);
+	static public String jsonify(Object object) {
+		try {
+			return new ObjectMapper().writeValueAsString(object);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 
-	static public <T> T dejsonify(String json, Class<T> valueType) throws IOException {
-		return new ObjectMapper().readValue(json, valueType);
+	static public <T> T dejsonify(String json, Class<T> valueType) {
+		try {
+			return new ObjectMapper().readValue(json, valueType);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	@SuppressWarnings({ "hiding", "unchecked" })
@@ -1799,4 +1812,61 @@ public class Utility {
 		System.out.println("time cost = " + (System.currentTimeMillis() - start));
 	}
 
+	public static String quote_js(String param) {
+		return param.replace("'", "\\'").replace("\\", "\\\\");
+	}
+
+	public static String quote_html(String param) {
+		return param.replace("'", "&apos;").replace("\\", "\\\\");
+	}
+
+	public static String str_html(String param) {
+		return param.replaceAll("<(?=[a-zA-Z])", "&lt;");
+	}
+
+	public static String quote_mysql(String param) {
+		return param.replace("'", "''").replace("\\", "\\\\");
+	}
+
+	static public void printJavaInfo() {
+		System.out.println("java版本号：" + System.getProperty("java.version")); // java版本号
+		System.out.println("Java提供商名称：" + System.getProperty("java.vendor")); // Java提供商名称
+		System.out.println("Java提供商网站：" + System.getProperty("java.vendor.url")); // Java提供商网站
+		System.out.println("jre目录：" + System.getProperty("java.home")); // Java，哦，应该是jre目录
+		System.out.println("Java虚拟机规范版本号：" + System.getProperty("java.vm.specification.version")); // Java虚拟机规范版本号
+		System.out.println("Java虚拟机规范提供商：" + System.getProperty("java.vm.specification.vendor")); // Java虚拟机规范提供商
+		System.out.println("Java虚拟机规范名称：" + System.getProperty("java.vm.specification.name")); // Java虚拟机规范名称
+		System.out.println("Java虚拟机版本号：" + System.getProperty("java.vm.version")); // Java虚拟机版本号
+		System.out.println("Java虚拟机提供商：" + System.getProperty("java.vm.vendor")); // Java虚拟机提供商
+		System.out.println("Java虚拟机名称：" + System.getProperty("java.vm.name")); // Java虚拟机名称
+		System.out.println("Java规范版本号：" + System.getProperty("java.specification.version")); // Java规范版本号
+		System.out.println("Java规范提供商：" + System.getProperty("java.specification.vendor")); // Java规范提供商
+		System.out.println("Java规范名称：" + System.getProperty("java.specification.name")); // Java规范名称
+		System.out.println("Java类版本号：" + System.getProperty("java.class.version")); // Java类版本号
+		System.out.println("Java类路径：" + System.getProperty("java.class.path")); // Java类路径
+		System.out.println("Java lib路径：" + System.getProperty("java.library.path")); // Java lib路径
+		System.out.println("Java输入输出临时路径：" + System.getProperty("java.io.tmpdir")); // Java输入输出临时路径
+		System.out.println("Java编译器：" + System.getProperty("java.compiler")); // Java编译器
+		System.out.println("Java执行路径：" + System.getProperty("java.ext.dirs")); // Java执行路径
+		System.out.println("操作系统名称：" + System.getProperty("os.name")); // 操作系统名称
+		System.out.println("操作系统的架构：" + System.getProperty("os.arch")); // 操作系统的架构
+		System.out.println("操作系统版本号：" + System.getProperty("os.version")); // 操作系统版本号
+		System.out.println("文件分隔符：" + System.getProperty("file.separator")); // 文件分隔符
+		System.out.println("路径分隔符：" + System.getProperty("path.separator")); // 路径分隔符
+		System.out.println("直线分隔符：" + System.getProperty("line.separator")); // 直线分隔符
+		System.out.println("操作系统用户名：" + System.getProperty("user.name")); // 用户名
+		System.out.println("操作系统用户的主目录：" + System.getProperty("user.home")); // 用户的主目录
+		System.out.println("当前程序所在目录：" + System.getProperty("user.dir")); // 当前程序所在目录
+	}
+
+	public static String word_boundary(String regex) {
+//		^ 取反，&& 逻辑与 （并且）
+//		[^456] 匹配一个 非4非5非6的任意字符，可以匹配：a、x、1、8、好、中……
+//		[a-o&&[def]] 等价于[def]，可以匹配：d、e、f
+//		[a-d&&[^bc]] 等价于 [ad]，可以匹配：a、d
+//		\w == "[一-龥a-zA-Zａ-ｚＡ-Ｚ0-9０-９_]"
+		regex = regex.replace("\\w", "[\\pL\\pM\\p{Nd}\\p{Nl}\\p{Pc}[\\p{InEnclosedAlphanumerics}&&\\p{So}]]");
+		regex = regex.replace("\\W", "[^\\pL\\pM\\p{Nd}\\p{Nl}\\p{Pc}[\\p{InEnclosedAlphanumerics}&&\\p{So}]]");
+		return regex;
+	}
 }

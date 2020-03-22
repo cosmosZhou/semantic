@@ -162,7 +162,7 @@ public class CWSTagger implements Serializable {
 		Utility.Timer timer = new Utility.Timer();
 		timer.start();
 		for (String str : arr.subList(0, 1000)) {
-			String strOriginal = Utility.convertSegmentationToOriginal(str.split("\\s+"));
+			String strOriginal = Utility.convertToOriginal(str.split("\\s+"));
 			ArrayList<String> predRes = instance.cut(strOriginal);
 			String[] goldRes = Utility.convertToSegmentation(str);
 			if (!Utility.equals(Utility.toArray(predRes), goldRes)) {

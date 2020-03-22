@@ -1,84 +1,40 @@
 package com.util;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.util.Properties;
+import java.io.File;
 
-import com.util.Utility;
+import org.ini4j.ConfigParser;
+import org.ini4j.ConfigParser.InterpolationException;
+import org.ini4j.ConfigParser.NoOptionException;
+import org.ini4j.ConfigParser.NoSectionException;
 
 public class PropertyConfig {
-	private static String default_config = "config.ini";
-	private static Properties mConfig;
+	public static ConfigParser config;
 	static {
-		mConfig = new Properties();
 		try {
-			InputStream is = new BufferedInputStream(new FileInputStream(Utility.workingDirectory + default_config));
+			System.out.println("initializing PropertyConfig");
+			config = new ConfigParser();
+			String config_path = new File(PropertyConfig.class.getResource("").getFile()).getParentFile().getParent()
+					+ "/config.ini";
 
-			mConfig.load(is);
-			is.close();
+			System.out.println("config_path = " + config_path);
+			config.read(config_path);
 		} catch (Exception e) {
-			// InputStream is;
-			// try {
-			// is = new BufferedInputStream(new FileInputStream("./"
-			// + default_config));
-			// mConfig.load(is);
-			// is.close();
-			//
-			// } catch (IOException e1) {
-			// // TODO Auto-generated catch block
-			// e1.printStackTrace();
-			// }
-
 			e.printStackTrace();
 		}
 	}
 
-	// public static String getProperty(String key) {
-	// String value = mConfig.getProperty(key);
-	// //System.out.println(key+"--"+value);
-	// /*解密*/
-	// Blowfish propertyEncryptor = new Blowfish("9client");
-	// String m = propertyEncryptor.decryptString(value);
-	// if(null != m){ //如果解密为null表示配置文件没加密
-	// value = m;
-	// //System.out.println(key+"--"+value);
-	// }
-	// return value;
-	// }
-
-	public static String getProperty(String key, String defaultValue) {
-		String value = mConfig.getProperty(key);
-		if (value == null)
-			return defaultValue;
-
-		return value;
+	static public String get(String section, String option) {
+		try {
+			return config.get(section, option);
+		} catch (NoSectionException | NoOptionException | InterpolationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
 	}
 
-	public static String getProperty(String key) {
-		return mConfig.getProperty(key);
-	}
-
-	public static boolean getBooleanProperty(String name, boolean defaultValue) {
-		String value = PropertyConfig.getProperty(name, null);
-
-		if (value == null)
-			return defaultValue;
-
-		return (new Boolean(value)).booleanValue();
-	}
-
-	public static int getIntProperty(String name) {
-		return getIntProperty(name, 0);
-	}
-
-	public static int getIntProperty(String name, int defaultValue) {
-		String value = PropertyConfig.getProperty(name, null);
-
-		if (value == null)
-			return defaultValue;
-
-		return (new Integer(value)).intValue();
+	public static void main(String[] args) {
+		System.out.println(config);
 	}
 
 }

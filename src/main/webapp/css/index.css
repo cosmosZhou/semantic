@@ -1,0 +1,28 @@
+body {
+	background-color: rgb(199, 237, 204);	
+	white-space: nowrap; 
+}
+
+input[type="file"] {
+	color: transparent;
+}
+
+.non-arrowed {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-color: rgb(199, 237, 204);
+	border: 0;
+	font-size: 1em;
+}
+
+.monospace-p, .monospace {
+	font-style: normal;
+	font-family: 新宋体, 宋体;
+	font-size: 1em;
+	font-weight: normal;
+	margin-left: 1em;
+}
+
+.monospace-p {
+	white-space: nowrap;
+}

@@ -1,0 +1,28 @@
+<html>
+<head>
+<meta charset="utf-8">
+<title>solr</title>
+<link rel="stylesheet" href="css/index.css" />
+</head>
+
+<body>
+	<form name=mysql method=post>
+		lang = <select id=lang name=lang>
+			<option value="en">en</option>
+			<option value="cn" selected>cn</option>
+			<option value="de">de</option>
+			<option value="fr">fr</option>
+			<option value="ja">ja</option>
+		</select> text = <input id=text type=text name=text> rows = <input
+			id=rows type='text' name=rows style='width: 4em;' value=10000
+			onkeyup="input_positive_integer(this)"
+			onafterpaste="input_positive_integer(this)"> <input
+			id=submit_query type=submit name=submit_query value=query>
+	</form>
+
+</body>
+</html>
+
+<script src="js/jquery-3.4.1.min.js"></script>
+<script src="js/clipboard.min.js"></script>
+<script src="js/utility.js"></script>

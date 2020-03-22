@@ -13,10 +13,85 @@ import org.apache.log4j.Logger;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
-import oracle.jdbc.pool.OracleDataSource;
-
 // http://repo1.maven.org/maven2/com/zaxxer/HikariCP-java7/2.4.8/
 public class DataSource implements AutoCloseable {
+
+	void init(HikariConfig config) {
+		int minimum = 10;
+		int maximum = 50;
+
+		config.addDataSourceProperty("cachePrepStmts", true);
+		config.addDataSourceProperty("prepStmtCacheSize", 500);
+
+		config.setAutoCommit(true);
+
+		config.setMinimumIdle(minimum);
+
+		config.setMaximumPoolSize(maximum);
+		ds = new HikariDataSource(config);
+	}
+
+	static public class MySQLDataSource extends DataSource {
+
+		public MySQLDataSource(String url, String user, String password) {
+			this(url, user, password, null, false, true, true);
+		}
+
+		public MySQLDataSource(String url, String user, String password, String serverTimezone) {
+			this(url, user, password, serverTimezone, true, true, true);
+		}
+
+		public MySQLDataSource(String url, String user, String password, String serverTimezone, boolean useSSL,
+				boolean useUnicode, boolean autoReconnect) {
+
+			HikariConfig config = new HikariConfig();
+
+			if (serverTimezone != null)
+				config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+			else
+				config.setDriverClassName("com.mysql.jdbc.Driver");
+
+			url += "user=" + user;
+			url += "&password=" + password;
+			url += "&characterEncoding=" + "utf-8";
+			if (serverTimezone != null)
+				url += "&serverTimezone=" + serverTimezone;
+
+			url += "&useSSL=" + useSSL;
+			url += "&useUnicode=" + useUnicode;
+			url += "&autoReconnect=" + autoReconnect;
+
+			config.setJdbcUrl(url);
+			log.info("url = " + url);
+			config.addDataSourceProperty("prepStmtCacheSqlLimit", 2048);
+			config.setConnectionTestQuery("SELECT 1");
+
+			this.init(config);
+		}
+	}
+
+	static public class OracleDataSource extends DataSource {
+
+		public OracleDataSource(String url, String user, String password) {
+			HikariConfig config = new HikariConfig();
+			config.setDriverClassName("oracle.jdbc.driver.OracleDriver");
+
+			oracle.jdbc.pool.OracleDataSource dataSource = null;
+			try {
+				dataSource = new oracle.jdbc.pool.OracleDataSource();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+
+			log.info("url = " + url);
+			dataSource.setURL(url);
+			dataSource.setUser(user);
+			dataSource.setPassword(password);
+			config.setDataSource(dataSource);
+
+			this.init(config);
+		}
+	}
 
 	abstract public class Invoker<TYPE> {
 		protected abstract TYPE invoke() throws Exception;
@@ -27,15 +102,13 @@ public class DataSource implements AutoCloseable {
 
 		public TYPE execute() throws Exception {
 			TYPE obj = null;
-			open();
-			try {
+
+			try (DataSource self = open()) {
 				obj = invoke();
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} finally {
-				close();
 			}
+
 			return obj;
 		}
 
@@ -43,14 +116,10 @@ public class DataSource implements AutoCloseable {
 
 	abstract public class Executor {
 		public Executor() throws Exception {
-			open();
-			try {
+			try (DataSource self = open()) {
 				invoke();
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} finally {
-				close();
 			}
 		}
 
@@ -62,7 +131,7 @@ public class DataSource implements AutoCloseable {
 
 	}
 
-	private HikariDataSource ds;
+	HikariDataSource ds;
 	Connection con = null;
 
 	public DatabaseMetaData getDatabaseMetaData() throws SQLException {
@@ -86,7 +155,7 @@ public class DataSource implements AutoCloseable {
 		// Class.forName("com.mysql.jdbc.Driver");
 		// con = DriverManager.getConnection(url, user, password);
 		con = getConnection();
-		log.info("Connection is opened.");
+//		log.info("Connection is opened.");
 		return this;
 	}
 
@@ -102,13 +171,12 @@ public class DataSource implements AutoCloseable {
 			con = null;
 			// System.gc();
 		}
-		log.info("Connection is closed.");
+//		log.info("Connection is closed.");
 	}
 
-	public class Query implements Iterable<ResultSet>, Iterator<ResultSet> {
+	public class Query implements Iterable<ResultSet>, Iterator<ResultSet>, AutoCloseable {
 
 		public Query(String sql) throws SQLException {
-			// log.info("Query : " + sql);
 			prepareStatement(sql);
 		}
 
@@ -144,14 +212,11 @@ public class DataSource implements AutoCloseable {
 
 		@Override
 		public ResultSet next() {
-			// TODO Auto-generated method stub
 			return result;
 		}
 
 		@Override
 		public void remove() {
-			// TODO Auto-generated method stub
-
 		}
 
 		@Override
@@ -161,21 +226,21 @@ public class DataSource implements AutoCloseable {
 		}
 	}
 
-	public boolean execute(String sql) throws SQLException {
-		log.info("sql: " + sql);
-		boolean ret = false;
-		PreparedStatement preparedStatement = con.prepareStatement(sql);
-		try {
-			ret = preparedStatement.execute();
+	public int execute(String sql) throws Exception {
+		int ret = 0;
+		try (PreparedStatement preparedStatement = con.prepareStatement(sql)) {
+			ret = preparedStatement.executeUpdate();
+			System.out.println("sql: " + sql);
 		} catch (Exception e) {
-			preparedStatement.close();
-			e.printStackTrace();
+//			e.printStackTrace();
 			throw e;
-		} finally {
-			preparedStatement.close();
 		}
 
 		return ret;
+	}
+
+	public int execute(String sql, Object... args) throws Exception {
+		return execute(String.format(sql, args));
 	}
 
 	public class BatchExecutive {
@@ -206,22 +271,18 @@ public class DataSource implements AutoCloseable {
 	}
 
 	protected int[] execute(String sql[], int length) throws SQLException {
-		Statement statement = con.createStatement();
 
 		int[] res = null;
-		try {
+		try (Statement statement = con.createStatement()) {
 			for (int i = 0; i < length; ++i) {
-				log.info("sql: " + sql[i]);
+				System.out.println("sql: " + sql[i]);
 				if (sql[i] == null)
 					throw new Exception("null sql occurred.");
 				statement.addBatch(sql[i]);
 			}
 			res = statement.executeBatch();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} finally {
-			statement.close();
 		}
 		// con.commit();
 
@@ -232,135 +293,12 @@ public class DataSource implements AutoCloseable {
 		mysql, oracle
 	}
 
-	/**
-	 * 初始化连接池
-	 * 
-	 * @param minimum
-	 * @param Maximum
-	 * @throws SQLException
-	 */
-	public DataSource(String url, String user, String password, Driver driver) {
-		int minimum = 10;
-		int maximum = 50;
-		// 连接池配置
-		HikariConfig config = new HikariConfig();
-		switch (driver) {
-		case mysql:
-			config.setDriverClassName("com.mysql.jdbc.Driver");
-			String value[] = { "user", "password", "true", "utf-8", "true", };
-			String key[] = { "user", "password", "useUnicode", "characterEncoding", "autoReconnect", };
-
-			value[0] = user;
-			value[1] = password;
-			for (int i = 0; i < value.length; ++i) {
-				url += '&' + key[i] + '=' + value[i];
-			}
-
-			config.setJdbcUrl(url);
-			log.info("url = " + url);
-			config.addDataSourceProperty("prepStmtCacheSqlLimit", 2048);
-			config.setConnectionTestQuery("SELECT 1");
-
-			break;
-		case oracle:
-			// config.setDriverClassName("org.hsqldb.jdbc.JDBCDriver");
-			// config.setDataSourceClassName("oracle.jdbc.pool.OracleDataSource");
-			config.setDriverClassName("oracle.jdbc.driver.OracleDriver");
-
-			OracleDataSource dataSource = null;
-			try {
-				dataSource = new OracleDataSource();
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			log.info("url = " + url);
-			dataSource.setURL(url);
-			dataSource.setUser(user);
-			dataSource.setPassword(password);
-			config.setDataSource(dataSource);
-			// config.setConnectionTestQuery("SELECT 1");
-			break;
-		}
-
-		config.addDataSourceProperty("cachePrepStmts", true);
-		config.addDataSourceProperty("prepStmtCacheSize", 500);
-
-		config.setAutoCommit(true);
-		// 池中最小空闲链接数量
-		config.setMinimumIdle(minimum);
-		// 池中最大链接数量
-		config.setMaximumPoolSize(maximum);
-
-		ds = new HikariDataSource(config);
-	}
-
-	public DataSource(String url, String user, String password, Driver driver, String serverTimezone) {
-		int minimum = 10;
-		int maximum = 50;
-		// pool configuration
-		HikariConfig config = new HikariConfig();
-		switch (driver) {
-		case mysql:
-			config.setDriverClassName("com.mysql.jdbc.Driver");
-			String value[] = { user, password, "true", "utf-8", "true", serverTimezone};
-			String key[] = { "user", "password", "useUnicode", "characterEncoding", "autoReconnect", "serverTimezone"};
-
-			for (int i = 0; i < value.length; ++i) {
-				url += '&' + key[i] + '=' + value[i];
-			}
-
-			config.setJdbcUrl(url);
-			log.info("url = " + url);
-			config.addDataSourceProperty("prepStmtCacheSqlLimit", 2048);
-			config.setConnectionTestQuery("SELECT 1");
-
-			break;
-		case oracle:
-			// config.setDriverClassName("org.hsqldb.jdbc.JDBCDriver");
-			// config.setDataSourceClassName("oracle.jdbc.pool.OracleDataSource");
-			config.setDriverClassName("oracle.jdbc.driver.OracleDriver");
-
-			OracleDataSource dataSource = null;
-			try {
-				dataSource = new OracleDataSource();
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			log.info("url = " + url);
-			dataSource.setURL(url);
-			dataSource.setUser(user);
-			dataSource.setPassword(password);
-			config.setDataSource(dataSource);
-			// config.setConnectionTestQuery("SELECT 1");
-			break;
-		}
-
-		config.addDataSourceProperty("cachePrepStmts", true);
-		config.addDataSourceProperty("prepStmtCacheSize", 500);
-
-		config.setAutoCommit(true);
-		// 池中最小空闲链接数量
-		config.setMinimumIdle(minimum);
-		// 池中最大链接数量
-		config.setMaximumPoolSize(maximum);
-
-		ds = new HikariDataSource(config);
-	}
-
-	/**
-	 * 销毁连接池
-	 */
 	@SuppressWarnings("deprecation")
 	public void shutdown() {
 		ds.shutdown();
 	}
 
 	/**
-	 * 从连接池中获取链接
 	 * 
 	 * @return
 	 */
@@ -372,19 +310,6 @@ public class DataSource implements AutoCloseable {
 			ds.resumePool();
 			return null;
 		}
-	}
-
-	public static void test(String[] args) throws SQLException {
-		String url = "jdbc:mysql://121.40.196.48:3306/ucc?";
-		String user = "root";
-		String password = "client1!";
-
-		DataSource ds = new DataSource(url, user, password, Driver.mysql);
-		Connection conn = ds.getConnection();
-
-		// ......
-		// 最后关闭链接
-		conn.close();
 	}
 
 	public static Logger log = Logger.getLogger(Utility.class);
