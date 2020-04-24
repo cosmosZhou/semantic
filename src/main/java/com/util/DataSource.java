@@ -18,7 +18,8 @@ public class DataSource implements AutoCloseable {
 
 	void init(HikariConfig config) {
 		int minimum = 10;
-		int maximum = 50;
+//		int maximum = 50;
+		int maximum = 100;
 
 		config.addDataSourceProperty("cachePrepStmts", true);
 		config.addDataSourceProperty("prepStmtCacheSize", 500);
@@ -143,7 +144,7 @@ public class DataSource implements AutoCloseable {
 	public synchronized DataSource open() throws Exception {
 		++cnt;
 		if (con != null) {
-			log.info("Connection is already opened. cnt = " + cnt);
+//			log.info("Connection is already opened. cnt = " + cnt);
 			// the Connection might be shut down automatically if it is not
 			// used for a long time;
 			if (con.isClosed()) {
@@ -289,25 +290,11 @@ public class DataSource implements AutoCloseable {
 		return res;
 	}
 
-	static public enum Driver {
-		mysql, oracle
-	}
-
-	@SuppressWarnings("deprecation")
-	public void shutdown() {
-		ds.shutdown();
-	}
-
-	/**
-	 * 
-	 * @return
-	 */
 	public Connection getConnection() {
 		try {
 			return ds.getConnection();
 		} catch (SQLException e) {
 			e.printStackTrace();
-			ds.resumePool();
 			return null;
 		}
 	}

@@ -7,8 +7,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-
+import com.servlet.Python;
 import com.util.HttpClient;
+import com.util.MySQL;
+import com.util.Native;
 import com.util.Utility;
 import com.util.regex.Matcher;
 import com.util.regex.Pattern;
@@ -27,48 +29,95 @@ public class Test {
 		return new Utility.Text(path).fetchContent();
 	}
 
-	public static void main(String[] args) throws Exception {
-		String _x = "(?<=\\w\\w)(平乡县|平乡镇)|(?<=平乡县|平乡镇)(\\w\\w)";
-		Matcher m = Pattern.compile("\\((?!\\?)").matcher(_x);
-//		Matcher m = Pattern.compile("\\((?=[^?])").matcher(_x);
-		while (m.find()) {
-			System.out.println("m.start() = " + m.start());
-			System.out.println("m.end() = " + m.end());
-			System.out.println(m.group());
-		}
+	public static void test_cws() throws Exception {
+		int err = 0;
+		int sum = 0;
+		for (Map<String, Object> dict : MySQL.instance
+				.select("select* from tbl_segment_cn where training = false order by rand() limit 1000")) {
+			++sum;
+			String text = (String) dict.get("text");
+//			String seg = (String) dict.get("seg");
 
-		String regex = "((?:^|(?<=[^一-龥a-zA-Zａ-ｚＡ-Ｚ0-9０-９]))规则) +(库(?:$|(?=[^一-龥a-zA-Zａ-ｚＡ-Ｚ0-9０-９])))";
-		String replacement = "$1$2";
+			String segFromCpp = String.join(" ", Native.segmentCN(text));
+			String segFromPython = Python.eval(String.format("segment('%s')", Utility.quote(text)), true);
 
-		String text = "规则 库中 ， 本地 规则 库 ， ";
-
-		for (char ch = '一'; ch <= '龥'; ++ch) {
-			if (Pattern.compile("\\w").matcher("" + ch).matches()) {
-				System.out.println(ch + " is a word character");
+			if (!segFromCpp.equals(segFromPython)) {
+				System.out.println("text = " + text);
+				System.out.println("segFromCpp  = " + segFromCpp);
+				System.out.println("segFromPython = " + segFromPython);
+				err += 1;
 			}
 		}
 
-		assert Pattern.compile(Utility.word_boundary("\\W\\w+\\d")).matcher("，库库0").matches();
+		System.out.println("err = " + err);
+		System.out.println("sum = " + sum);
+		System.out.println("acc = " + ((sum - err) * 1.0 / sum));
+	}
 
-		System.out.println("text = " + text);
-		text = Pattern.compile(Utility.word_boundary(regex)).matcher(text).replaceAll(replacement);
-		System.out.println("text = " + text);
+	public static void test_keyword_cn() throws Exception {
+		int err = 0;
+		int sum = 0;
+		for (Map<String, Object> dict : MySQL.instance
+				.select("select* from tbl_keyword_cn order by rand() limit 10000")) {
+			++sum;
+			String text = (String) dict.get("text");
+//			String seg = (String) dict.get("seg");
+//			System.out.println("text = " + text);
+			int resFromCpp = Native.keywordCN(text);
 
-//		Utility.printJavaInfo();
-//		String keyword = "medicine";
-//		String q = String.format("TTL:%s OR ABST:%s", keyword, keyword);
-//		String q_ml = String.format("TTL_MT:%s OR ABST_MT:%s", keyword, keyword);
-//		String q_cn = String.format("TTL_CN:%s OR ABST_CN:%s", keyword, keyword);
-//		String q_cn_ml = String.format("TTL_MT_CN:%s OR ABST_MT_CN:%s", keyword, keyword);
+			double resFromPython = Double
+					.parseDouble(Python.eval(String.format("keyword('%s', 'cn')", Utility.quote(text)), true));
 
-//		String url = String.format(
-//				"http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/select?fl=TTL,ABST&q=%s&rows=1000",
-//				q);
-//		System.out.println(url);
+			if ((resFromCpp > 0.5) ^ (resFromPython > 0.5)) {
+				System.out.println("text = " + text);
+				System.out.println("seg4cpp  = " + resFromCpp);
+				System.out.println("seg4Python = " + resFromPython);
+				err += 1;
 
-//		List<Map<String, String>> result = HttpClient.solr_with_keyword("en", keyword, 10000);
-//		System.out.println(result);
+				System.out.println(Python.eval(String.format("keyword_debug('%s', 'cn')", Utility.quote(text)), false));
+			}
+		}
 
+		System.out.println("err = " + err);
+		System.out.println("sum = " + sum);
+		System.out.println("acc = " + ((sum - err) * 1.0 / sum));
+	}
+
+	public static void test_keyword_en() throws Exception {
+		int err = 0;
+		int sum = 0;
+		for (Map<String, Object> dict : MySQL.instance
+				.select("select* from tbl_keyword_en order by rand() limit 10000")) {
+			++sum;
+			String text = (String) dict.get("text");
+//			String seg = (String) dict.get("seg");
+//			System.out.println("text = " + text);
+//			double resFromCpp = Native.keywordENDouble(text);
+			int resFromCpp = Native.keywordEN(text);
+
+			double resFromPython = Double
+					.parseDouble(Python.eval(String.format("keyword('%s', 'en')", Utility.quote(text)), true));
+
+			if ((resFromCpp > 0.5) ^ (resFromPython > 0.5)) {
+				System.out.println("text = " + text);
+				System.out.println("seg4cpp  = " + resFromCpp);
+				System.out.println("seg4Python = " + resFromPython);
+				err += 1;
+				System.out.println(Python.eval(String.format("keyword_debug('%s', 'en')", Utility.quote(text)), false));
+			}
+		}
+
+		System.out.println("err = " + err);
+		System.out.println("sum = " + sum);
+		System.out.println("acc = " + ((sum - err) * 1.0 / sum));
+	}
+
+	public static void main(String[] args) throws Exception {
+		test_cws();
+//		test_keyword_cn();
+//		test_keyword_en();
+//		Native.keywordCN("");
+//		Native.keywordEN("");
 	}
 }
 //https://lucene.apache.org/solr/guide/7_7/result-clustering#clustering-concepts

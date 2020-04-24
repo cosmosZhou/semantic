@@ -1,6 +1,6 @@
 body {
-	background-color: rgb(199, 237, 204);	
-	white-space: nowrap; 
+	background-color: rgb(199, 237, 204);
+	white-space: nowrap;
 }
 
 input[type="file"] {
@@ -15,12 +15,15 @@ input[type="file"] {
 	font-size: 1em;
 }
 
-.monospace-p, .monospace {
+.monospace, .monospace-p, .monospace-form {
 	font-style: normal;
 	font-family: 新宋体, 宋体;
 	font-size: 1em;
-	font-weight: normal;
-	margin-left: 1em;
+	font-weight: normal;	
+}
+
+.monospace {
+	margin-left:-0.1em;
 }
 
 .monospace-p {

@@ -6,24 +6,26 @@
 <%@page import="java.util.Map"%>
 <%@page import="com.util.Utility"%>
 <%@page import="com.util.MySQL"%>
-<%@page import="com.servlet.Frontier"%>
+<%@page import="com.servlet.Jsp"%>
 <%@page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 <%
 	String cmd = request.getParameter("cmd");
 	String table = request.getParameter("table");
-	int limit = Frontier.getLimit(request);
-	int training = Frontier.getTraining(request);
+	int limit = Jsp.getLimit(request);
+	int training = Jsp.getTraining(request);
 	String text = request.getParameter("text");
-	text = text.replace("\\", "\\\\");
 
-	int label = Frontier.getInt(request, "label");
+	int label = Jsp.getInt(request, "label");
 	String relation_text = request.getParameter("relation_text");
+	String rand = request.getParameter("rand");
 
-	String lines[] = {"mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
-			"changeInputlength(mysql.relation_text, true)", "mysql.label.value = %d", "mysql.limit.value = %d",
-			"mysql.training.value = %d"};
+	String lines[] = {"mysql.cmd.value = '%s'", "if (mysql.cmd.value != 'select*') onchangeTable(mysql.cmd)",
+			"mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
+			"changeInputlength(mysql.relation_text, true)", "mysql.label.value = %d",
+			"mysql.training.value = %d", "mysql.rand.checked = %s", "mysql.limit.value = %d"};
 
-	out.print(Frontier.javaScript(String.join(";", lines), text, relation_text, label, limit, training));
+	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text, label, training,
+			rand == null ? "false" : "true", limit));
 
 	String lang = table.split("_")[2];
 
@@ -32,7 +34,15 @@
 	String sql;
 	List<String> conditions = new ArrayList<String>();
 	if (!text.isEmpty()) {
-		conditions.add(Frontier.process_text("text", relation_text, text));
+		conditions.add(Jsp.process_text("text", relation_text, text));
+	}
+
+	boolean discrepant = false;
+	if (training >= 0) {
+		if (training == 2)
+			discrepant = true;
+		else
+			conditions.add("training = " + training);
 	}
 
 	if (label >= 0) {
@@ -42,16 +52,8 @@
 			conditions.add("label = " + label);
 	}
 
-	boolean discrepant = false;
-	if (training >= 0) {
-		if (training > 1)
-			discrepant = true;
-		else
-			conditions.add("training = " + training);
-	}
-
 	String condition = conditions.isEmpty() ? "" : "where " + String.join(" and ", conditions) + " ";
-	if (request.getParameter("rand") != null)
+	if (rand != null)
 		condition += "order by rand() ";
 
 	if (!discrepant)
@@ -64,14 +66,10 @@
 	}
 
 	System.out.println(sql);
-	if (cmd.equals("delete")) {
-		out.print(sql);
-		MySQL.instance.execute(sql);
-		return;
-	}
-
-	if (cmd.equals("update")) {
-		out.print(sql);
+	if (!cmd.equals("select*")) {
+		if (!discrepant)
+			out.print(String.format("<p class=%s ondblclick='mysql_execute(this)'>%s</p>", cmd,
+					Utility.str_html(sql)));
 		sql = String.format("select* from %s %s", table, condition);
 	}
 
@@ -81,15 +79,21 @@
 		switch (lang) {
 			case "cn" :
 				filter = new MySQL.Filter() {
-					public boolean sift(ResultSet res) throws SQLException {
-						return res.getInt("label") == (int) (Native.keywordCN(res.getString("text")) * 2);
+					public Object sift(ResultSet res) throws SQLException {
+						double y_pred = Native.keywordCN(res.getString("text"));
+						if (res.getInt("label") == y_pred)
+							return null;
+						return y_pred;
 					}
 				};
 				break;
 			case "en" :
 				filter = new MySQL.Filter() {
-					public boolean sift(ResultSet res) throws SQLException {
-						return res.getInt("label") == (int) (Native.keywordCN(res.getString("text")) * 2);
+					public Object sift(ResultSet res) throws SQLException {
+						double y_pred = Native.keywordCN(res.getString("text"));
+						if (res.getInt("label") == y_pred)
+							return null;
+						return y_pred;
 					}
 				};
 				break;
@@ -101,8 +105,9 @@
 	} else
 		list = MySQL.instance.select(sql);
 
-	if (!discrepant && !cmd.equals("update")) {		
-		out.print(String.format("<p ondblclick='mysql_execute(this)'>%s</p>", sql));
+	if (!discrepant) {
+		out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>",
+				Utility.str_html(sql)));
 		out.print("count(*) = " + list.size());
 	}
 %>
@@ -127,11 +132,12 @@
 				label = (Integer) dict.get("label");
 			}
 
-			out.print(Frontier.createKeywordEditor(text, label, training, changed));
+			out.print(Jsp.createKeywordEditor(text, label, training, changed));
 		}
 	%>
-	<input type=submit name='submit_<%=table%>' value=submit>
+	<input type=submit name='<%=table%>_submit' value=submit>
 </form>
 <script>
-	fill_tbl_keyword();
+	if (mysql.training.value != 2)
+		fill_tbl_keyword();
 </script>

@@ -3,6 +3,9 @@ package com.nlp;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.TreeMap;
 
 import javax.servlet.http.HttpServletRequest;
@@ -16,7 +19,8 @@ import javax.ws.rs.core.Context;
 
 import org.ahocorasick.trie.Trie;
 import org.apache.commons.lang.SystemUtils;
-import org.carrot2.core.LanguageCode;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrDocument;
 import org.ini4j.ConfigParser.InterpolationException;
 import org.ini4j.ConfigParser.NoOptionException;
 import org.ini4j.ConfigParser.NoSectionException;
@@ -26,7 +30,9 @@ import com.deeplearning.NERTaggerDict;
 import com.deeplearning.Service;
 import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
 import com.patsnap.core.analysis.manager.CarrotManager;
+import com.patsnap.core.analysis.manager.CarrotManager.ClusteringResult;
 import com.servlet.Python;
+import com.util.HttpClient;
 import com.util.HttpClientWebApp;
 import com.util.MySQL;
 import com.util.Native;
@@ -36,6 +42,8 @@ import com.util.Utility;
 //sh tomcat/bin/startup.sh 
 //tail -100f tomcat/logs/catalina.out
 //http://192.168.3.133:9000/semantic/algorithm/ahocorasick/test
+//http://192.168.3.133:8080/semantic/solr.jsp
+//http://localhost:8080/semantic/solr.jsp
 //http://localhost:8080/semantic/algorithm/ahocorasick/test
 @Path("algorithm")
 public class Algorithm {
@@ -419,25 +427,6 @@ public class Algorithm {
 		return Utility.jsonify(CarrotManager.instance.getClusteringResult(language, keyword, 10000));
 	}
 
-	@SuppressWarnings("unchecked")
-	@POST
-	@Path("carrot2/ling3g")
-	@Consumes("application/x-www-form-urlencoded")
-	@Produces("text/plain;charset=utf-8")
-	public String carrot2_ling3g(@Context HttpServletRequest request) throws Exception {
-		String language = request.getParameter("language");
-		String text = null;
-		if (language != null) {
-			text = request.getReader().readLine();
-			language = "en";
-		} else {
-			text = request.getParameter("text");
-		}
-
-		return Utility.jsonify(CarrotManager.instance.getClusteringResult(LanguageCode.forISOCode(language),
-				Utility.dejsonify(text, ArrayList.class)));
-	}
-
 	@GET
 	@Path("mysql/{sql}")
 	@Produces("text/plain;charset=utf-8")
@@ -486,6 +475,60 @@ public class Algorithm {
 		default:
 			return null;
 		}
+	}
+
+	@POST
+	@Path("cache")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String cache(@Context HttpServletRequest request) throws IOException, SolrServerException {
+		String text = request.getParameter("text");
+		String lang = request.getParameter("lang");
+		System.out.println("text = " + text);
+		int cache_index = Integer.parseInt(request.getParameter("cache_index"));
+
+		List<String> ids = CarrotManager.ClusteringResult.cache[cache_index].get(text);
+		System.out.println("CarrotManager.ClusteringResult.cache[cache_index].get(text).size() = " + ids.size());
+
+		if (ids.size() > 512) {
+			ids = ids.subList(0, 512);
+		}
+		List<SolrDocument> result = HttpClient.solr_with_id(lang, ids);
+
+		return Utility.jsonify(result);
+	}
+
+	@POST
+	@Path("segment")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String segment(@Context HttpServletRequest request) throws Exception {
+		String text = request.getReader().readLine();
+		List<Map<String, Object>> result = MySQL.instance
+				.select_from("select seg, training from tbl_segment_cn where text = '%s'", Utility.quote_mysql(text));
+
+		Map<String, Object> map;
+		if (result.isEmpty()) {
+			map = new HashMap<String, Object>();
+			map.put("seg", String.join(" ", Native.segmentCN(text)));
+			map.put("training", "+" + new Random().nextInt(2));
+		} else {
+			map = result.get(0);
+		}
+
+		return Utility.jsonify(map);
+	}
+
+	@POST
+	@Path("clustering")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String clustering(@Context HttpServletRequest request) throws Exception {
+		String text = request.getParameter("text");
+		String lang = request.getParameter("lang");
+		int rows = Integer.parseInt(request.getParameter("rows"));
+		ClusteringResult result = CarrotManager.instance.getClusteringResult(lang, text, rows);
+		return Utility.jsonify(result);
 	}
 
 	@GET

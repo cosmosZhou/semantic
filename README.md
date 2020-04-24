@@ -52,4 +52,16 @@ tail -100f tomcat/logs/catalina.out
 
 the following is the main testing page:
 
-http://localhost:8080/QASystem
+http://localhost:8080/semantic
+
+for instance:
+[mysql]
+user=root
+password="123456"
+host=172.16.1.139
+database=corpus
+charset=utf8
+port=3306
+
+[model]
+pwd=/home/zhoulizhi/solution

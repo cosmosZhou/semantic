@@ -3,15 +3,18 @@ var tableSelector = [
 	'tbl_segment_cn',
 	'tbl_keyword_cn',
 	'tbl_keyword_en',
+	'tbl_paraphrase_cn',
+	'tbl_paraphrase_en',	
 	'tbl_intent',
-	'tbl_paraphrase',
 	'tbl_phatic',
 	'tbl_qatype',
 	'tbl_repertoire',
 	'tbl_service',
 	'tbl_syntax_cn',
-	'tbl_translation'
-	]
+	'tbl_translation',
+	'tbl_pretraining_cn',
+	'tbl_pretraining_en',
+	];
 
 function request_get(url, data, callback, args) {
 	// console.log('data =');
@@ -66,9 +69,13 @@ function input_positive_integer(input) {
 	}
 }
 
-function input_nonnegative_integer(input) {
+function input_nonnegative_integer(input, max) {	
 	input.value = input.value.replace(/\D/g, '');
-
+	if (max){
+		if (parseInt(input.value) > max){
+			input.value = max;		
+		}
+	}
 }
 
 function input_nonnegative_number(input) {
@@ -107,8 +114,9 @@ function rand_check(checked) {
 	return `order by rand() <input type="checkbox" name=rand ${checked} onchange="changeLimit(this)">`;
 }
 
-function limit_check(limit) {
-	return `limit <input id=limit type='text' name=limit style='width:2.5em;' value = ${limit} onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`;
+function limit_check(limit, max) {	
+	var limit_fn = max? `input_nonnegative_integer(this, ${max})` : 'input_nonnegative_integer(this)';	
+	return `limit <input id=limit type='text' name=limit style='width:2.5em;' value = ${limit} onkeyup= "${limit_fn}" onafterpaste="${limit_fn}">`;
 }
 
 function generateComparisonRelation(name) {
@@ -176,8 +184,12 @@ function generateSelectorIndexed(selector, fieldSelected, name, onchange, style,
 var timestamp_select = 'and updatetime is ' + generateSelector(['null', 'not null', 'today', 'not today', 'this week', 'not this week', 'this month', 'not this month'], '', 'updatetime', '', 'width:5em;');
 
 
-function like_statement(text) {
-	var like = generateSelector(['like', 'like binary', 'regexp', '=', 'not like', 'not like binary', 'not regexp', '!='], 'regexp', `relation_${text}`, 'changeInputlength(this, true)', 'width:3.2em;', "non-arrowed");
+function like_statement(text, method) {
+	var onchange = 'changeInputlength(this, true); ';
+	if (method)
+		onchange += `if (this.value == "!=") this.nextElementSibling.value = "${method}";`;
+	
+	var like = generateSelector(['like', 'like binary', 'regexp', '=', 'not like', 'not like binary', 'not regexp', '!='], 'regexp', `relation_${text}`, onchange, 'width:3.2em;', "non-arrowed");
 	return `${text} ${like}<input id=${text} type=text name=${text} style='width:8em;' onkeydown='changeInputlength(this);'>`;
 }
 
@@ -261,8 +273,9 @@ function onchangeTable(self) {
 					if (y.options[i].value == y.value)
 						break;
 				}
-				++i;
-				if (i == y.options.length){
+				++i; 
+// y.options.length - 1 for default,
+				if (i >= y.options.length - 1){
 					i = 0;
 				}
 				
@@ -276,7 +289,8 @@ function onchangeTable(self) {
 			text_after_y = text_after_y.substr(0, mid);
 			break;
 		case 'text':
-			set_clause += 'replace(seg, ';
+			console.log("y.name = "+ y.name);
+			set_clause += 'replace({0}, '.format(y.name);
 			div.insertBefore(document.createTextNode(set_clause), where_clause);
 			var replacement = y.cloneNode(false);
 			
@@ -285,6 +299,9 @@ function onchangeTable(self) {
 			
 			div.insertBefore(y, where_clause);
 			div.insertBefore(document.createTextNode(", "), where_clause);
+			
+			y.focus();
+			
 			y = replacement;
 			text_after_y = ') ';
 			break;	
@@ -442,8 +459,16 @@ function changeTable(tablename) {
 			);
 
 			break;
-		case "tbl_paraphrase":
-			div.innerHTML = selectTable('tbl_paraphrase', 'x')
+		case "tbl_paraphrase_cn":
+			div.innerHTML = selectTable('tbl_paraphrase_cn', 'x')
+				+ 'and ' + like_statement('y')
+				+ "and score " + generateComparisonRelation('relation')
+				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
+				+ training_check() + rand_check(true) + limit_check(40);
+			mysql.x.focus();
+			break;
+		case "tbl_paraphrase_en":
+			div.innerHTML = selectTable('tbl_paraphrase_en', 'x')
 				+ 'and ' + like_statement('y')
 				+ "and score " + generateComparisonRelation('relation')
 				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
@@ -475,9 +500,11 @@ function changeTable(tablename) {
 		case "tbl_segment_cn":
 			div.innerHTML = selectTable('tbl_segment_cn', 'text')
 				+ "and " + like_statement('seg')
-				+ "and text.length " + generateComparisonRelation('relation')
-				+ `<input id=char_length type='text' name=char_length style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
-				+ training_check() + rand_check(false) + limit_check(40);
+// + "and text.length " + generateComparisonRelation('relation')
+// + `<input id=char_length type='text' name=char_length style='width:2.5em;'
+// onkeyup= "input_positive_integer(this)"
+// onafterpaste="input_positive_integer(this)">`
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			mysql.text.focus();
 			break;
 		case "tbl_phatic":
@@ -503,7 +530,7 @@ function changeTable(tablename) {
 			
 			div.innerHTML = selectTable('tbl_keyword_cn', 'text')
 				+ "and label = " + labelSelector 
-				+ training_check() + rand_check(true) + limit_check(40);
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			mysql.text.focus();
 
 			break;
@@ -512,7 +539,21 @@ function changeTable(tablename) {
 			
 			div.innerHTML = selectTable('tbl_keyword_en', 'text')
 				+ "and label = " + labelSelector
-				+ training_check() + rand_check(true) + limit_check(40);
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
+			mysql.text.focus();
+
+			break;
+		case "tbl_pretraining_cn":			
+			div.innerHTML = selectTable('tbl_pretraining_cn', 'title')
+				+ "and " + like_statement('text')				
+				+ rand_check(false) + limit_check(40, 1000);
+			mysql.text.focus();
+
+			break;
+		case "tbl_pretraining_en":
+			div.innerHTML = selectTable('tbl_pretraining_en', 'title')
+				+ "and " + like_statement('text')				
+				+ rand_check(false) + limit_check(40, 1000);
 			mysql.text.focus();
 
 			break;
@@ -523,7 +564,7 @@ function changeTable(tablename) {
 	}
 }
 
-function byte_length(s) {
+function strlen(s) {
 	var length = 0;
 	for (let i = 0; i < s.length; i++) {
 		var code = s.charCodeAt(i)
@@ -603,7 +644,7 @@ function add_ner_field(div, text, service, slot) {
 					text = text.join();
 				}
 
-				var style = 'width:' + Math.min(32, byte_length(text) / 2 + 1) + 'em;';
+				var style = 'width:' + Math.min(32, strlen(text) / 2 + 1) + 'em;';
 
 			}
 			else {
@@ -1005,12 +1046,10 @@ function add_keyword_item_utility(label, text) {
 		var training = Math.floor(Math.random() * 2);		
 	}
 	
-	var html = `<input type='text' name='text' value = '${text}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling)'> `;
+	text = quote_html(text);
+	var html = `<input type='text' name='text' value = '${text}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling)'> = `;
 	
-	html += generateSelectorIndexed(["isn't", "is"], label, 'label', 'changeColor(this, this.nextElementSibling)');
-
-	html += "technical";
-	
+	html += generateSelectorIndexed(["untechnical", "technical"], label, 'label', 'changeColor(this, this.nextElementSibling)');
 	
 	html += `<input type='hidden' name='training' value = '+${training}'><br><br>`;
 	return html;
@@ -1062,6 +1101,16 @@ function add_keyword_item(div, text) {
 	}
 }
 
+function onchange_segment_text(self){
+	var seg = self.nextElementSibling.nextElementSibling;
+	var training = seg.nextElementSibling;
+	changeColor(self, training);
+	request_post('algorithm/segment', self.value).done(res =>{
+		seg.value = res['seg'];
+		training.value = res['training'];
+	});
+}
+
 function add_segment_item_utility(text, seg) {
 	console.log("text = " + text);
 	if (text.startsWith('{') && text.endsWith('}')){
@@ -1080,11 +1129,11 @@ function add_segment_item_utility(text, seg) {
 		console.log("randomly set training");
 	}
 	
-	var style = "width:{0}em;".format(Math.max(byte_length(text) / 2 + 1, 32));
+	var style = "width:{0}em;".format(Math.max(strlen(text) / 2 + 1, 32));
 	
-	var html = `<input type=text name=text style='${style}' value='${text}' class=monospace onchange='changeColor(this, this.nextElementSibling.nextElementSibling.nextElementSibling)' onkeydown='changeInputlength(this, true)'><br>`;
+	var html = `<input type=text name=text style='${style}' value='${text}' class=monospace onchange='onchange_segment_text(this)' onkeydown='changeInputlength(this, true, 32)'><br>`;
 	
-	style = "width:{0}em;".format(Math.max(byte_length(seg) / 2 + 1, 32));
+	style = "width:{0}em;".format(Math.max(strlen(seg) / 2 + 1, 32));
 	html += `<input type=text name=seg style='${style}' value='${seg}' class=monospace onchange='onchange_segment(this)' onkeydown='onkeydown_segment(this, event)'>`;
 	
 	html += `<input type='hidden' name='training' value='+${training}'><br><br>`;
@@ -1256,8 +1305,8 @@ function changeInputlength(input, exactly, min) {
 	
 // console.log(val);
 
-	var text_length = byte_length(val);
-//	console.log(text_length);
+	var text_length = strlen(val);
+// console.log(text_length);
 
 	if (exactly){
 		text_length /= 2.0;		
@@ -1315,13 +1364,16 @@ window.onload = function () {
 	// currentFunctionKey = window.currentFunctionKey;
 	// console.log('register: function (MainKey, value, func)');
 	document.onkeyup = function (event) {
-		if (event.keyCode == currentFunctionKey)
+		console.log('onkeyup');
+		var keyCode = event.keyCode;
+		console.log('keyCode = ' + keyCode);
+// if (keyCode == currentFunctionKey)
 			currentFunctionKey = null;
 	}
 
 	document.onkeydown = function (event) {
 		var keyCode = event.keyCode;
-
+		console.log('onkeydown');
 		console.log('keyCode = ' + keyCode);
 
 		var keyValue = String.fromCharCode(event.keyCode);
@@ -1332,57 +1384,6 @@ window.onload = function () {
 		if (currentFunctionKey == null) {
 			currentFunctionKey = keyCode;
 			return;			
-// switch (keyCode) {
-// case 38: // down arrow
-// var activeElement = document.activeElement
-// console.log(activeElement);
-// switch(activeElement.nodeName){
-// case 'BODY':
-// activeElement =
-// $(document.activeElement).find("input[name=is_keyword]").slice(-1)[-0];
-// activeElement.focus();
-// break;
-// case 'INPUT':
-// do {
-// activeElement = activeElement.previousElementSibling;
-// }
-// while (activeElement.nodeName != 'INPUT');
-//
-// activeElement.focus();
-// break;
-// default:
-// console.log("activeElement.nodeName = " + activeElement.nodeName);
-// break;
-// }
-//				
-// console.log("Up Arrow");
-// break;
-// case 40: // down arrow
-// var activeElement = document.activeElement
-// console.log(activeElement);
-// switch(activeElement.nodeName){
-// case 'BODY':
-// activeElement = $(document.activeElement).find("input[name=is_keyword]")[0];
-// activeElement.focus();
-// break;
-// case 'INPUT':
-// do {
-// activeElement = activeElement.nextElementSibling;
-// }
-// while (activeElement.nodeName != 'INPUT');
-//
-// activeElement.focus();
-// break;
-// default:
-// console.log("activeElement.nodeName = " + activeElement.nodeName);
-// break;
-// }
-// console.log("Down Arrow");
-// break;
-// default:
-// currentFunctionKey = keyCode;
-// return;
-// }
 		}
 
 		switch (currentFunctionKey) {
@@ -1406,7 +1407,6 @@ window.onload = function () {
 						toggle_training();
 						console.log("Alt + T");
 						break;
-
 					case '\r':
 					case '\n':
 						console.log("Alt + Enter");
@@ -1596,22 +1596,27 @@ function update_service_code_selector(self, code) {
 
 function fill_tbl_keyword() {
 	var children = keyword.children;
-	var lang = children[children.length - 1].name.split('_').pop();
+	var table_name = children[children.length - 1].name.replace('_submit', '');
+	console.log('table_name = ' + table_name);
+	var lang = table_name.split('_').pop();
+	console.log('lang = ' + lang);
+	
 	var columnSize = 5;
 	for (var j = 1; j < children.length; j += columnSize) {
 		var text = children[j - 1].value;
 		console.log('text = ' + text);
 
-		var label = children[j];
-		request_post('algorithm/keyword', {lang: lang, text: text}).done(res =>
-		{
-			var y_pred = parseFloat(res);
-			console.log('y_pred = ' + y_pred);
-			y_pred = Math.floor(y_pred * 2);
-			if (y_pred != label.value){
-				label.style.color = 'red';						
-			}
-		});
+		request_post('algorithm/keyword', {lang: lang, text: text}, 'text').done((label =>
+			res =>
+			{
+				console.log('res = ' + res);
+				var y_pred = parseInt(res);
+				console.log('y_pred = ' + y_pred);
+				if (y_pred != label.value){
+					label.style.color = 'red';						
+				}
+			}			
+		)(children[j]));
 	}
 }
 
@@ -1961,7 +1966,15 @@ function modify_infix(infix, infixExpression) {
 }
 
 function quote_mysql(param) {
-	return param.replace(/'/g, "''");
+	return param.replace(/'/g, "''").replace(/\\/, "\\\\");
+}
+
+function quote_html(param) {
+	return param.replace(/&/g, "&amp;").replace(/'/g, "&apos;").replace(/\\/, "\\\\");
+}
+
+function quote(param) {
+	return param.replace(/\\/, "\\\\").replace(/'/g, "\\'");
 }
 
 function onsubmit_segment(self){	
@@ -2250,7 +2263,7 @@ function update_paraphrase_score(div) {
 		return;
 	}
 
-	var mysql = `select score from tbl_paraphrase where x = '${x}' and y = '${y}'`;
+	var mysql = `select score from tbl_paraphrase_cn where x = '${x}' and y = '${y}'`;
 
 	request_get({ mysql: mysql }, function (dict, div) {
 		if (dict.length == 1) {
@@ -2289,15 +2302,10 @@ function insert_into_mysql(input) {
 			var x = div.children[0].value;
 			var y = div.children[1].value;
 
-			if (x.indexOf("'") >= 0) {
-				x = x.replace("'", "''");
-			}
+			x = quote_mysql(x);
+			y = quote_mysql(y);
 
-			if (y.indexOf("'") >= 0) {
-				y = y.replace("'", "''");
-			}
-
-			request_get({ mysql: `delete from tbl_paraphrase where x = '${x}' and y = '${y}'` });
+			request_get({ mysql: `delete from tbl_paraphrase_cn where x = '${x}' and y = '${y}'` });
 
 			break;
 
@@ -2348,13 +2356,8 @@ function paraphrase_predict(div) {
 	var y = div.children[1].value;
 	var score = parseInt(div.children[2].value);
 
-	if (x.indexOf("'") >= 0) {
-		x = x.replace("'", "\\'");
-	}
-
-	if (y.indexOf("'") >= 0) {
-		y = y.replace("'", "\\'");
-	}
+	x = quote(x);
+	y = quote(y);
 
 	invoke_python(`similarity('${x}', '${y}')`, function (score_pred, args) {
 		var score = args[0];
@@ -2388,9 +2391,7 @@ function paraphrase_predict(div) {
 }
 
 function fill_tbl_paraphrase() {
-	var division = document.getElementsByName('paraphrase_division');
-
-	for (var div of division) {
+	for (var div of form.children) {
 		paraphrase_predict(div);
 	}
 }
@@ -2401,7 +2402,8 @@ function set_value(input, value) {
 }
 
 function isEnglish(ch) {
-	return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= 'ａ' && ch <= 'ｚ' || ch >= 'Ａ' && ch <= 'Ｚ';
+	return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= 'ａ' && ch <= 'ｚ' || ch >= 'Ａ' && ch <= 'Ｚ'
+		|| ch >= '0' && ch <= '9' || ch >= '０' && ch <= '９';
 }
 
 function convertToOriginal(arr) {
@@ -2436,6 +2438,170 @@ function convertToSegmentation(str) {
 	return str.trim().split(/[\u2002\s]+/);
 }
 
+function split_into_sentences(document) {	
+	var texts = [];
+
+	for (let m of matchAll(document, /[^;!?：；！？…。\r\n]+[;!?：；！？…。\r\n]*/g)) {
+		var line = m[0].trim();
+// # if the current sentence is correct, skipping processing!
+		if (!line.match(/^[’”]/) || texts.length == 0) {
+// # sentence boundary detected!
+			texts.push(line);
+			continue;
+		}
+		if (line.match(/^.[,)\\]}，）】》、的]/)) {
+// # for the following '的 ' case, this sentence should belong to be previous
+// one:
+// # ”的文字，以及选项“是”和“否”。
+			if (line.substring(1, 3) == "的确") {
+// # for the following special case:
+// # ”的确， GPS和其它基于卫星的定位系统为了商业、公共安全和国家安全的用 途而快速地发展。
+				texts[texts.length - 1] += line.charAt(0);
+
+// # sentence boundary detected! insert end of line here
+				texts.push(line.substring(1).ltrim());
+				continue;
+			}
+// # for the following comma case:
+// # ”,IEEE Jounalon Selected Areas in
+// Communications,Vol.31,No.2,Feburary2013所述。
+			texts[texts.length - 1] += line;
+			continue;
+		}
+		var _m = /^.[;.!?:；。！？：…\r\n]+/.exec(line);		
+		if (_m)
+			var boundary_index = _m.lastIndex;
+		else
+			var boundary_index = 1;
+// # considering the following complex case:
+// # ”!!!然后可以通过家长控制功能禁止观看。
+// # sentence boundary detected! insert end of line here
+		texts[texts.length - 1] += line.substring(0, boundary_index);
+		if (boundary_index < line.length)
+			texts.push(line.substring(boundary_index).ltrim());
+	}
+	return texts;
+}
+
+function add_segment_from_solr(text, cache_index){
+	console.log("text = " + text);
+	console.log("cache_index = " + cache_index);
+	
+	var url=window.location.href; 
+	if (url.indexOf("?") != -1){
+		url = url.replace(/(\?|#)[^']*/, '');
+		window.history.pushState({}, 0, url);
+	}	
+	
+	mysql.text.value = text;
+	mysql.limit.value = 0;
+	
+	var form = document.createElement('form');
+	form.name = 'form';
+	form.setAttribute('method', 'post');
+	form.setAttribute('onsubmit', 'onsubmit_segment(this)');
+	form.setAttribute('class', 'monospace');
+	
+	var submit = document.createElement('input');
+	submit.type = 'submit';
+	submit.name = 'tbl_segment_cn_submit';
+	submit.value = 'submit';
+	form.appendChild(submit);
+	document.body.appendChild(form);
+	request_post('algorithm/cache', {text : text, cache_index : cache_index, lang: 'cn'}).done(res =>{		
+		for (let doc of res){
+// console.log(doc);
+			var a = document.createElement('a');
+			a.href = "http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/select?q=_id:" + doc['_id'];
+			a.innerHTML = doc['TTL'];
+			
+			form.insertBefore(a, submit);			
+			form.insertBefore($('<br>')[0], submit);		
+						
+// form.insertBefore(document.createTextNode(doc['ABST']), submit);
+			form.insertBefore($('<br>')[0], submit);
+			
+			for (let text of split_into_sentences(doc['ABST'])){				
+				text = text.replace(/^(\(\d+\)|[\d〇零一二两三四五六七八九十]+[,:.、，；：])/, "");
+				
+				var hidden = document.createElement('input');
+				hidden.type = 'hidden';
+				hidden.name = 'text';
+				hidden.value = text;
+				form.insertBefore(hidden, submit);
+				form.insertBefore(document.createTextNode(text), submit);
+				form.insertBefore($('<br>')[0], submit);
+				
+				var seg = document.createElement('input');
+				seg.type = 'text';
+				seg.name = 'seg';				
+// seg.placeholder = '%s';
+				seg.setAttribute('class', 'monospace');
+				seg.setAttribute('onchange', 'onchange_segment(this)');
+				seg.setAttribute('onkeydown', 'onkeydown_segment(this, event)');					
+				if (text.length > 128){
+					seg.setAttribute('disabled', true);
+				}
+				
+				form.insertBefore(seg, submit);
+				
+				var training = document.createElement('input');
+				training.type = 'hidden';
+				training.name = 'training';
+				
+				training.value = Math.floor(Math.random() * 2);
+				form.insertBefore(training, submit);
+				
+
+				form.insertBefore($('<br>')[0], submit);
+				form.insertBefore($('<br>')[0], submit);
+				
+				request_post('algorithm/segment', text).done((seg => res =>{
+					console.log(res);
+					seg.value = res['seg'];
+					var length = Math.max(32, strlen(res['seg']) / 2 + 1);
+					seg.style = `width:${length}em;`;					
+					if (!seg.disabled){
+						seg.nextElementSibling.value = res['training'];						
+					}
+				})(seg));
+			}
+
+			form.insertBefore($('<br>')[0], submit);
+		}		
+	});
+}
+
+function add_segment_en_from_solr(text, cache_index){
+	console.log("text = " + text);
+	console.log("cache_index = " + cache_index);
+	
+	mysql.text.value = text;
+	mysql.limit.value = 0;
+	
+	
+	var url = window.location.href; 
+	if (url.indexOf("?") != -1){
+		url = url.replace(/(\?|#)[^']*/, '');
+		window.history.pushState({}, 0, url);
+	}	
+	
+	request_post('algorithm/cache', {text : text, cache_index : cache_index, lang: 'en'}).done(res =>{		
+		for (let doc of res){
+			console.log(doc);
+			var a = document.createElement('a');
+			a.href = "http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/select?q=_id:" + doc['_id'];
+			a.innerHTML = doc['TTL'];
+			
+			document.body.appendChild(a);
+			document.body.appendChild(document.createElement("br"));
+			
+			document.body.appendChild(document.createTextNode(doc['ABST']));
+			document.body.appendChild(document.createElement("br"));
+		}		
+	});
+}
+
 String.prototype.format = function()
 {
     var args = arguments;
@@ -2443,4 +2609,58 @@ String.prototype.format = function()
         function(m,i){
             return args[i];
         });
+}
+
+String.prototype.ltrim = function() 
+{ 
+	return this.replace(/(^\s*)/g, ""); 
+} 
+
+String.prototype.rtrim = function() 
+{ 
+	return this.replace(/(\s*$)/g, ""); 
+} 
+
+function onmouseover_solrText(self, event){
+	var hover = self.previousElementSibling.previousElementSibling;
+	hover.style.display = "block";
+	hover.style.left = event.pageX || event.clientX + document.body.scroolLeft;
+	hover.style.top = event.pageY || event.clientY + document.body.scrollTop;
+}
+
+function onmouseout_solrText(self, event){
+	var hover = self.previousElementSibling.previousElementSibling;
+	hover.style.display = "none";
+}
+
+function add_solr_item(){	
+	var submit = $(mysql).find("input[type=submit]")[0];
+	var div = submit.previousElementSibling
+	var _div = div.cloneNode(true);
+	_div.children[0].value = div.children[0].value; 
+	mysql.insertBefore(_div, submit);
+}
+
+function concurrency_test(){
+	console.log("function concurrency_test()");
+	for (var i = 1; i < mysql.children.length - 1; ++i){
+		var lang = mysql.children[i].children[0].value;
+		var text = mysql.children[i].children[1].value;
+		var rows = mysql.children[i].children[2].value;
+		console.log("lang = " + lang);
+		console.log("text = " + text);
+		console.log("rows = " + rows);
+		
+		request_post('algorithm/clustering', {lang: lang, text:text, rows: rows}).done((element => res =>{
+			console.log(res);
+			var info = document.createElement("span");
+			info.innerHTML = "list = " + JSON.stringify(res['list']) + '<br>';			
+			info.innerHTML += "solr_duration = " + res['solr_duration'] + '<br>';
+			info.innerHTML += "clustering_duration = " + res['clustering_duration'] + '<br>';
+			info.innerHTML += "postprocessing_duration = " + res['postprocessing_duration'] + '<br>';
+			info.innerHTML += "numFromSolr = " + res['numFromSolr'] + '<br>';
+			
+			mysql.insertBefore(info, element);
+		})(mysql.children[i+1]));		
+	}	
 }

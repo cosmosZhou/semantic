@@ -20,6 +20,13 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest.METHOD;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
 
 public class HttpClient {
 
@@ -49,7 +56,7 @@ public class HttpClient {
 			try (CloseableHttpResponse response = client.execute(httpPost)) {
 				HttpEntity entity = response.getEntity();
 				String str = EntityUtils.toString(entity, "UTF-8");
-				System.out.println(str);
+//				System.out.println(str);
 				return str;
 			}
 		} catch (IOException e1) {
@@ -85,35 +92,26 @@ public class HttpClient {
 		return mres;
 	}
 
-	@SuppressWarnings("unchecked")
-	static List<Object> solr(String path, String q, String fl, int rows) throws IOException {
-		HashMap<String, String> parameters = new HashMap<String, String>();
+	static SolrDocumentList solr(String q, String fl, int rows) throws IOException, SolrServerException {
+		SolrQuery query = new SolrQuery();
 
-		parameters.put("fl", fl);
-		parameters.put("q", q);
-		parameters.put("rows", String.valueOf(rows));
+		query.set("fl", fl);
+		query.set("q", q);
+		query.set("rows", rows);
 
-		Map<String, Object> resultGet = sendGet(path, parameters);
-		Map<String, Object> response = (Map<String, Object>) resultGet.get("response");
-		if (response == null) {
-			return new ArrayList<Object>();
-		}
-		return (List<Object>) response.get("docs");
+		QueryResponse response = solrServer.query(query, METHOD.POST);
+
+		return response.getResults();
 	}
 
-	static String solr_path(String path, String q, String fl, int rows) {
-		HashMap<String, String> parameters = new HashMap<String, String>();
+	static HttpSolrClient solrServer = new HttpSolrClient.Builder(
+			"http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/").withConnectionTimeout(10000)
+					.withSocketTimeout(60000).build();
 
-		parameters.put("fl", fl);
-		parameters.put("q", q);
-		parameters.put("rows", String.valueOf(rows));
+//	static String s_search_patent_solr = "http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/select";
 
-		return fullURL(path, parameters);
-	}
-
-	static String s_search_patent_solr = "http://s-gateway-qa.k8s.zhihuiya.com/s-search-patent-solr/patsnap/PATENT/select";
-
-	public static String solr_keyword_address(String language, String keyword, int rows) {
+	public static List<SolrDocument> solr_with_keyword(String language, String keyword, int rows)
+			throws IOException, SolrServerException {
 		String TTL = "TTL";
 		String ABST = "ABST";
 
@@ -123,14 +121,18 @@ public class HttpClient {
 			ABST = "ABST_" + language;
 		}
 
-		keyword = keyword.replaceAll("\\s+", "%20");
-		return solr_path(s_search_patent_solr, String.format("%s:%s%%20OR%%20%s:%s", TTL, keyword, ABST, keyword),
+//		keyword = keyword.replaceAll("\\s+", "%20");
+		List<SolrDocument> docs = solr(String.format("%s:%s or %s:%s", TTL, keyword, ABST, keyword),
 				String.format("%s,%s,_id", TTL, ABST), rows);
+		for (SolrDocument dict : docs) {
+			dict.put("TTL", dict.remove(TTL));
+			dict.put("ABST", dict.remove(ABST));
+		}
+		return docs;
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static List<Map<String, String>> solr_with_keyword(String language, String keyword, int rows)
-			throws IOException {
+	public static List<SolrDocument> solr_with_id(String language, List<String> _id)
+			throws IOException, SolrServerException {
 		String TTL = "TTL";
 		String ABST = "ABST";
 
@@ -140,12 +142,9 @@ public class HttpClient {
 			ABST = "ABST_" + language;
 		}
 
-		keyword = keyword.replaceAll("\\s+", "%20");
-		List<Map<String, String>> docs = (List) solr(s_search_patent_solr,
-				String.format("%s:%s%%20OR%%20%s:%s", TTL, keyword, ABST, keyword),
-				String.format("%s,%s,_id", TTL, ABST), rows);
-		for (Object object : docs) {
-			Map<String, Object> dict = (Map<String, Object>) object;
+		List<SolrDocument> docs = solr(String.format("_id:(%s)", String.join(" or ", _id)),
+				String.format("%s,%s,_id", TTL, ABST), _id.size());
+		for (SolrDocument dict : docs) {
 			dict.put("TTL", dict.remove(TTL));
 			dict.put("ABST", dict.remove(ABST));
 		}
@@ -153,14 +152,5 @@ public class HttpClient {
 	}
 
 	public static void main(String[] args) throws Exception {
-		String keyword = "medicine";
-
-		System.out.println("start with solr");
-		long start = System.currentTimeMillis();
-		List<Map<String, String>> docs = solr_with_keyword("English", keyword, 10000);
-		System.out.println(docs.size());
-		long end = System.currentTimeMillis();
-		System.out.println("time cost in solr = " + (end - start));
-//		System.out.println(docs);
 	}
 }

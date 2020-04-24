@@ -156,7 +156,7 @@ public class MySQL extends DataSource.MySQLDataSource {
 	}
 
 	public List<Map<String, Object>> select(String sql) {
-		log.info("Query : " + sql);
+//		log.info("Query : " + sql);
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 		try (DataSource inst = open()) {
 
@@ -177,7 +177,7 @@ public class MySQL extends DataSource.MySQLDataSource {
 	}
 
 	static public interface Filter {
-		boolean sift(ResultSet res) throws SQLException;
+		Object sift(ResultSet res) throws SQLException;
 	}
 
 	public List<Map<String, Object>> select(String sql, Filter filter, int limit) {
@@ -185,7 +185,8 @@ public class MySQL extends DataSource.MySQLDataSource {
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 		try (DataSource inst = open(); Query query = new Query(sql)) {
 			for (ResultSet res : query) {
-				if (filter.sift(res)) {
+				Object mark = filter.sift(res);
+				if (mark == null) {
 					continue;
 				}
 
@@ -196,6 +197,7 @@ public class MySQL extends DataSource.MySQLDataSource {
 					String key = metaData.getColumnLabel(i);
 					dict.put(key, res.getObject(key));
 				}
+				dict.put("mark", mark);
 
 				list.add(dict);
 				if (list.size() >= limit)
@@ -229,18 +231,8 @@ public class MySQL extends DataSource.MySQLDataSource {
 		return execute(String.format(sql, args));
 	}
 
-	public int select_from(String table, String keyword) {
-		int label = -1;
-		try (DataSource inst = open()) {
-
-			for (ResultSet res : new Query(String.format("select label from %s where text = '%s'", table, keyword))) {
-				label = res.getInt("label");
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return label;
+	public List<Map<String, Object>> select_from(String sql, Object ...args) {
+		return select(String.format(sql, args));
 	}
 
 	public static class Description {
@@ -407,7 +399,7 @@ public class MySQL extends DataSource.MySQLDataSource {
 		}
 	}
 
-	public String insert(String table, String[]... args) {
+	public List<String> insert(String table, String[]... args) {
 		List<String> list = new ArrayList<String>();
 
 		try (DataSource inst = this.open()) {
@@ -458,14 +450,15 @@ public class MySQL extends DataSource.MySQLDataSource {
 			e.printStackTrace();
 		}
 
+		String[] array = list.toArray(new String[list.size()]);
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				MySQL.this.execute(list.toArray(new String[list.size()]));
+				MySQL.this.execute(array);
 			}
 		}).start();
 
-		return String.join("<br>", list);
+		return list;
 	}
 
 	public static void main(String[] args) throws Exception {

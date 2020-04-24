@@ -4353,6 +4353,20 @@ public final class Pattern implements java.io.Serializable {
 			}
 		}
 
+		int[] try_range() {
+			try {
+				Field lhsField = this.getClass().getDeclaredField("val$lower");
+				lhsField.setAccessible(true);
+
+				Field rhsField = this.getClass().getDeclaredField("val$upper");
+				rhsField.setAccessible(true);
+
+				return new int[] { (int) lhsField.get(this), (int) rhsField.get(this) };
+			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+				return null;
+			}
+		}
+
 		static String strip_bracket(String regex) {
 			if (regex.startsWith("[") && regex.charAt(1) != '^')
 				return regex.substring(1, regex.length() - 1);
@@ -4379,17 +4393,21 @@ public final class Pattern implements java.io.Serializable {
 			}
 
 			CharProperty binary[] = null;
-			binary =
-
-					try_binary("union");
-			if (binary == null)
+			binary = try_binary("union");
+			if (binary == null) {
 				binary = try_binary("setDifference");
-			if (binary == null)
-				binary = try_binary("intersection");
+				if (binary == null)
+					binary = try_binary("intersection");
+			}
 
 			if (binary != null) {
 				return String.format("[%s%s]", strip_bracket(binary[0].toStringSingle()),
 						strip_bracket(binary[1].toStringSingle()));
+			}
+
+			int[] range = this.try_range();
+			if (range != null) {
+				return String.format("[%c-%c]", range[0], range[1]);
 			}
 			return null;
 		}
@@ -4561,6 +4579,8 @@ public final class Pattern implements java.io.Serializable {
 		@Override
 		public String toStringSingle() {
 			switch (this.ctype) {
+			case 1024:
+				return "\\d";
 			case 67328:
 				return "\\w";
 			}
@@ -4620,7 +4640,7 @@ public final class Pattern implements java.io.Serializable {
 			for (int i = 0; i < str.length; ++i) {
 				str[i] = (char) buffer[i];
 			}
-			return new String(str);
+			return new String(str).replace("(", "\\(").replace(")", "\\)");
 		}
 
 		@Override
@@ -5408,7 +5428,7 @@ public final class Pattern implements java.io.Serializable {
 		}
 
 		public String toStringSingle(CharSequence delimiter) {
-			String[] array = new String[atoms.length];
+			String[] array = new String[this.size];
 			for (int i = 0; i < array.length; i++) {
 				array[i] = atoms[i].toStringSingle();
 			}
@@ -5449,31 +5469,39 @@ public final class Pattern implements java.io.Serializable {
 
 		@Override
 		public String toString() {
-			String str = toStringSingle();
-			if (next instanceof Branch) {
-				Branch branch = (Branch) next;
-				str += branch.conn;
-			} else {
-				str += next.next;
+			if (this.localIndex == 0) {
+				String str = String.format("(%s)", next.toStringSingle());
+				if (next instanceof Branch) {
+					Branch branch = (Branch) next;
+					str += branch.conn;
+				} else {
+					str += next.next;
+				}
+				return str;
 			}
-			return str;
+
+			return toStringSingle();
 		}
 
 		@Override
 		public String toStringSingle() {
-			return String.format("(%s)", next.toStringSingle());
+			return String.format("(%s)", next.toString());
 		}
 
 		@Override
 		public String toStringTrimmed() {
-			String str = toStringSingle();
-			if (next instanceof Branch) {
-				Branch branch = (Branch) next;
-				str += branch.conn;
-			} else {
-				str += next.next.toStringTrimmed();
+			if (this.localIndex == 0) {
+				String str = String.format("(%s)", next.toStringSingle());
+				if (next instanceof Branch) {
+					Branch branch = (Branch) next;
+					str += branch.conn.toStringTrimmed();
+				} else {
+					str += next.next.toStringTrimmed();
+				}
+				return str;
 			}
-			return str;
+
+			return toStringSingle();
 		}
 	}
 

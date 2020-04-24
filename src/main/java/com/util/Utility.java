@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Vector;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -47,10 +46,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Utility {
 	public static void main(String[] args) throws Exception {
-		char[] arr = new char[16];
-		System.out.println(arr.length);
+		short[] arr = new short[16];
+		System.out.println(arr);
 
-		testCharArray();
+		char[][] arrs = new char[16][];
+		System.out.println(arrs);
+//		testCharArray();
 	}
 
 	static public String workingDirectory = "../";
@@ -490,6 +491,7 @@ public class Utility {
 
 	static public class Timer {
 		long start;
+		double duration;
 
 		public Timer() {
 			start();
@@ -505,10 +507,18 @@ public class Utility {
 		}
 
 		public void report() {
-			double dif = System.currentTimeMillis() - start;
-			dif /= 1000;
-			log.info("Total Time duration " + dif + " seconds or " + (dif / 60) + " minutes");
+			duration = System.currentTimeMillis() - start;
+			duration /= 1000;
+			log.info("Total Time duration " + duration + " seconds or " + (duration / 60) + " minutes");
 			start();
+		}
+
+		public double report(String message) {
+			duration = System.currentTimeMillis() - start;
+			duration /= 1000;
+			System.out.printf("Time cost in %s = %f seconds\n", message, duration);
+			start();
+			return duration;
 		}
 	}
 
@@ -575,7 +585,8 @@ public class Utility {
 	}
 
 	public static boolean isEnglish(char ch) {
-		return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= 'ａ' && ch <= 'ｚ' || ch >= 'Ａ' && ch <= 'Ｚ';
+		return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= 'ａ' && ch <= 'ｚ' || ch >= 'Ａ' && ch <= 'Ｚ'
+				|| ch >= '0' && ch <= '9' || ch >= '０' && ch <= '９';
 	}
 
 	public static final String EnglishPunctuation = ",.:;!?()\\[\\]{}'\"=<>";
@@ -1278,7 +1289,7 @@ public class Utility {
 
 	}
 
-	public static int byte_length(String value) {
+	public static int strlen(String value) {
 		int length = 0;
 		for (int i = 0; i < value.length(); ++i) {
 			char ch = value.charAt(i);
@@ -1326,7 +1337,7 @@ public class Utility {
 		}
 
 		public int max_width() {
-			int width = byte_length(value);
+			int width = strlen(value);
 			if (x != null) {
 				int width_x = max_width(x);
 				if (width_x > width)
@@ -1580,7 +1591,7 @@ public class Utility {
 					TextTreeNode head = currNode.x[0];
 					// the string is right-aligned / right-justified, that's why
 					// there a series of leading ' ';
-					int dif = colWidth - byte_length(head.value);// for leading ' 's
+					int dif = colWidth - strlen(head.value);// for leading ' 's
 
 //					if ((head.j - currCol) * colWidth + dif >= 0)
 					cout.append(Utility.toString((head.j - currCol) * colWidth + dif, ' '));
@@ -1602,7 +1613,7 @@ public class Utility {
 				}
 
 				// for leading white spaces;
-				cout.append(Utility.toString(colWidth - byte_length(currNode.value), ch) + currNode.value);
+				cout.append(Utility.toString(colWidth - strlen(currNode.value), ch) + currNode.value);
 
 				currCol = currNode.j;
 				if (currNode.y != null) {
@@ -1654,6 +1665,10 @@ public class Utility {
 
 	public static <T> T last(List<T> str) {
 		return str.get(str.size() - 1);
+	}
+
+	public static <T> T last(List<T> str, T newValue) {
+		return str.set(str.size() - 1, newValue);
 	}
 
 	static public <_Ty> _Ty[] copier(_Ty[] adverb, _Ty element) {
@@ -1812,19 +1827,30 @@ public class Utility {
 		System.out.println("time cost = " + (System.currentTimeMillis() - start));
 	}
 
-	public static String quote_js(String param) {
-		return param.replace("'", "\\'").replace("\\", "\\\\");
+	/*
+	 * quote for javaScript or python language
+	 */
+	public static String quote(String param) {
+//		if (param == null)
+//			return "";
+		return param.replace("\\", "\\\\").replace("'", "\\'");
 	}
 
 	public static String quote_html(String param) {
-		return param.replace("'", "&apos;").replace("\\", "\\\\");
+//		if (param == null)
+//			return "";		
+		return param.replace("&", "&amp;").replace("'", "&apos;").replace("\\", "\\\\");
 	}
 
 	public static String str_html(String param) {
-		return param.replaceAll("<(?=[a-zA-Z])", "&lt;");
+//		if (param == null)
+//			return "";		
+		return param.replace("&", "&amp;").replaceAll("<(?=[a-zA-Z!/])", "&lt;");
 	}
 
 	public static String quote_mysql(String param) {
+//		if (param == null)
+//			return "";		
 		return param.replace("'", "''").replace("\\", "\\\\");
 	}
 
@@ -1868,5 +1894,41 @@ public class Utility {
 		regex = regex.replace("\\w", "[\\pL\\pM\\p{Nd}\\p{Nl}\\p{Pc}[\\p{InEnclosedAlphanumerics}&&\\p{So}]]");
 		regex = regex.replace("\\W", "[^\\pL\\pM\\p{Nd}\\p{Nl}\\p{Pc}[\\p{InEnclosedAlphanumerics}&&\\p{So}]]");
 		return regex;
+	}
+
+	public static String rtrim(String str) {
+		int num = str.length();
+		for (int i = num - 1; i > -1; i--) {
+			if (!(str.substring(i, i + 1).equals(" "))) {
+				return str.substring(0, i + 1);
+			}
+		}
+		return str;
+	}
+
+	public static String ltrim(String str) {
+		int num = str.length();
+		for (int i = 0; i < num; ++i) {
+			if (!Character.isSpaceChar(str.charAt(i))) {
+				return str.substring(i);
+			}
+		}
+		return "";
+	}
+
+	public static String[] flatten(String[][] text) {
+		int length = 0;
+		for (String[] sentence : text) {
+			length += sentence.length;
+		}
+		String[] result = new String[length];
+
+		int index = 0;
+		for (String[] sentence : text) {
+			for (String word : sentence) {
+				result[index++] = word;
+			}
+		}
+		return result;
 	}
 }

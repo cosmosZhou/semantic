@@ -9,30 +9,42 @@
 <%@page import="java.util.Map"%>
 <%@page import="com.util.Utility"%>
 <%@page import="com.util.MySQL"%>
-<%@page import="com.servlet.Frontier"%>
+<%@page import="com.servlet.Jsp"%>
 <%@page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 <%
 	//	request.setCharacterEncoding("utf-8");
 	String cmd = request.getParameter("cmd");
 	String table = request.getParameter("table");
-	int limit = Frontier.getLimit(request);
-	int training = Frontier.getTraining(request);
-	String text = request.getParameter("text");
-	String seg = request.getParameter("seg");
-	String replacement = request.getParameter("replacement");
 
+	String text = request.getParameter("text");
 	String relation_text = request.getParameter("relation_text");
+
+	String seg = request.getParameter("seg");
+	if (seg == null)
+		seg = "";
 	String relation_seg = request.getParameter("relation_seg");
 
+	String replacement = request.getParameter("replacement");
+
+	int training = Jsp.getTraining(request);
+	String rand = request.getParameter("rand");
+	int limit = Jsp.getLimit(request);
+
+	String seg_script = "mysql.seg.value = '%s';";
+	if (relation_seg != null) {
+		seg_script += String.format(
+				"mysql.relation_seg.value = '%s'; changeInputlength(mysql.relation_seg, true)", relation_seg);
+	}
+
 	String lines[] = {"mysql.cmd.value = '%s'", "mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
-			"changeInputlength(mysql.relation_text, true)", "mysql.seg.value = '%s'",
-			"mysql.training.value = %d", "mysql.limit.value = %s",
+			"changeInputlength(mysql.relation_text, true)", seg_script, "mysql.training.value = %d",
+			"mysql.rand.checked = %s", "mysql.limit.value = %s",
 			"if (mysql.cmd.value != 'select*') onchangeTable(mysql.cmd)",
 			"if (mysql.cmd.value == 'update') mysql.replacement.value = '%s'"};
 
-	out.print(Frontier.javaScript(String.join(";", lines), cmd, Utility.quote_js(text), relation_text,
-			Utility.quote_js(seg), training, limit < 0 ? "" : String.valueOf(limit),
-			replacement != null ? Utility.quote_js(replacement) : null));
+	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text,
+			Utility.quote(seg), training, rand == null ? "false" : "true",
+			limit < 0 ? "" : String.valueOf(limit), replacement != null ? Utility.quote(replacement) : null));
 
 	String lang = table.split("_")[2];
 
@@ -41,13 +53,13 @@
 	String sql;
 	List<String> conditions = new ArrayList<String>();
 	if (!text.isEmpty()) {
-		conditions.add(Frontier.process_text("text", relation_text, text));
+		conditions.add(Jsp.process_text("text", relation_text, text));
 	}
 
 	StringMatcher matcher = null;
 	if (!seg.isEmpty()) {
 		if (relation_seg != null)
-			conditions.add(Frontier.process_text("seg", relation_seg, seg));
+			conditions.add(Jsp.process_text("seg", relation_seg, seg));
 		else {
 			String old;
 			if (!replacement.isEmpty()) {
@@ -59,36 +71,34 @@
 				old = "(?<=\\w\\w)(" + seg + ")|(?<=" + seg + ")(\\w\\w)";
 				replacement = " $1$2";
 			} else {
-				old = null;
-				replacement = null;
+				old = seg;
+				replacement = "";
 			}
 			System.out.println("old = " + old);
 			System.out.println("replacement = " + replacement);
 			matcher = new StringMatcher(old, replacement);
 
-			conditions.add(Frontier.process_text("seg", "regexp", matcher.seg));
+			conditions.add(Jsp.process_text("seg", "regexp", matcher.seg));
 		}
 	}
 
 	boolean discrepant = false;
 	if (training >= 0) {
-		if (training > 1)
+		if (training == 2)
 			discrepant = true;
 		else
 			conditions.add("training = " + training);
 	}
 
 	String condition = conditions.isEmpty() ? "" : "where " + String.join(" and ", conditions) + " ";
-	if (request.getParameter("rand") != null)
+	if (rand != null)
 		condition += "order by rand() ";
 
 	if (!discrepant && limit >= 0)
 		condition += "limit " + limit;
 
 	switch (cmd) {
-
 		case "update" :
-
 			if (matcher != null) {
 				if (matcher.text != null) {
 					sql = String.format(
@@ -100,10 +110,10 @@
 					sql = String.format("%s %s set seg = regexp_replace(seg, '%s', '%s') %s", cmd, table,
 							Utility.quote_mysql(matcher.seg), Utility.quote_mysql(matcher.seg_replacement),
 							condition);
-
-					out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>", sql));
-					sql = String.format("select* from %s %s", table, condition);
 				}
+				out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
+						Utility.str_html(sql)));
+				sql = String.format("select* from %s %s", table, condition);
 			} else {
 				cmd = "select*";
 				sql = String.format("%s from %s %s", cmd, table, condition);
@@ -112,7 +122,8 @@
 			break;
 		case "delete" :
 			sql = String.format("%s from %s %s", cmd, table, condition);
-			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>", sql));
+			out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
+					Utility.str_html(sql)));
 			sql = String.format("select* from %s %s", table, condition);
 			break;
 		default :
@@ -125,11 +136,37 @@
 		switch (lang) {
 			case "cn" :
 				filter = new MySQL.Filter() {
-					public boolean sift(ResultSet res) throws SQLException {
-						String text = res.getString("text").replace(" ", "");
-						String seg = res.getString("seg").replace(" ", "");
-						return text.equals(seg);
-						//						return res.getString("seg").equals(Native.segmentCN(res.getString("text")));
+					public Object sift(ResultSet res) throws SQLException {
+						String text = res.getString("text");
+						String seg = res.getString("seg");
+						String _seg = String.join(" ", Native.segmentCN(text));
+						if (seg.equals(_seg))
+							return null;
+
+						int length = Math.min(seg.length(), _seg.length());
+						int i = 0;
+						for (; i < length; ++i) {
+							if (seg.charAt(i) != _seg.charAt(i)) {
+								break;
+							}
+						}
+
+						int j = i;
+
+						if (seg.charAt(i) == ' ') {
+							for (--i; i >= 0 && seg.charAt(i) != ' '; --i);
+							for (; j < _seg.length() && _seg.charAt(j) != ' '; ++j);
+						} else {
+							for (; i >= 0 && seg.charAt(i) != ' '; --i);
+							for (++j; j < _seg.length() && _seg.charAt(j) != ' '; ++j);
+						}
+
+						if (i < 0) {
+							i = 0;
+						}
+
+						return Utility.toString(Utility.strlen(seg.substring(0, i)), ' ')
+								+ _seg.substring(i, j);
 					}
 				};
 				break;
@@ -142,9 +179,9 @@
 		list = MySQL.instance.select(sql);
 
 	if (!discrepant) {
-		out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>", sql));
+		out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>",
+				Utility.str_html(sql)));
 	}
-	out.print("count(*) = " + list.size());
 %>
 
 <div>
@@ -155,44 +192,62 @@
 		onchange='handleFiles(this, add_segment_item)' value='text'
 		accept='.txt' style='width: 5em;' title=''>, ...)<br> <br>
 </div>
-<form name=form method="post" onsubmit="onsubmit_segment(this)">
+<%
+	if (!list.isEmpty()) {
+		out.print("count(*) = " + list.size());
+%>
+<form name=form method="post" onsubmit="onsubmit_segment(this)"
+	class=monospace-form>
 	<%
 		boolean changed = matcher != null;
-		boolean deleted = cmd.equals("delete");
-		switch (cmd) {
-			case "update" :
-				for (Map<String, Object> dict : list) {
-					text = (String) dict.get("text");
-					seg = (String) dict.get("seg");
-					boolean bTraining = (boolean) (Boolean) dict.get("training");
+			boolean deleted = cmd.equals("delete");
+			switch (cmd) {
+				case "update" :
+					for (Map<String, Object> dict : list) {
+						text = (String) dict.get("text");
+						seg = (String) dict.get("seg");
+						boolean bTraining = (boolean) (Boolean) dict.get("training");
 
-					String[] seg_result = matcher.transform(seg);
-					if (matcher.text != null) {
-						String text_replacement = matcher.transform_text(text);
-						out.print(Frontier.createSegmentEditor(text_replacement, text, seg_result[0], seg_result[1],
-								bTraining, changed));
-					} else {
-						out.print(Frontier.createSegmentEditor(text, seg_result[0], seg_result[1], bTraining,
-								changed));
+						String[] seg_result = matcher.transform(seg);
+						if (matcher.text != null) {
+							String text_replacement = matcher.transform_text(text);
+							out.print(Jsp.createSegmentEditor(text_replacement, text, seg_result[0], seg_result[1],
+									bTraining, changed));
+						} else {
+							out.print(Jsp.createSegmentEditor(text, seg_result[0], seg_result[1], bTraining,
+									changed));
+						}
 					}
-				}
-				break;
-			case "delete" :
-				for (Map<String, Object> dict : list) {
-					out.print(Frontier.createSegmentEditor("", (String) dict.get("text"), (String) dict.get("seg"),
-							null, (boolean) (Boolean) dict.get("training"), false));
-				}
-				break;
-			default :
-				for (Map<String, Object> dict : list) {
-					out.print(Frontier.createSegmentEditor((String) dict.get("text"), (String) dict.get("seg"),
-							(boolean) (Boolean) dict.get("training")));
-				}
+					break;
+				case "delete" :
+					for (Map<String, Object> dict : list) {
+						out.print(Jsp.createSegmentEditor("", (String) dict.get("text"), (String) dict.get("seg"),
+								null, (boolean) (Boolean) dict.get("training"), false));
+					}
+					break;
+				default :
+					for (Map<String, Object> dict : list) {
+						if (dict.containsKey("mark"))
+							out.print(Jsp.createSegmentEditor((String) dict.get("text"), (String) dict.get("seg"),
+									(String) dict.get("mark"), (boolean) (Boolean) dict.get("training"), false));
+						else
+							out.print(Jsp.createSegmentEditor((String) dict.get("text"), (String) dict.get("seg"),
+									(boolean) (Boolean) dict.get("training")));
+					}
 
-		}
+			}
 	%>
-	<input type=submit name='submit_<%=table%>' value=submit>
+	<input type=submit name='<%=table%>_submit' value=submit>
 </form>
+
+<%
+	}
+	if (cmd.equals("select*") && !discrepant) {
+%>
 <script>
 	fill_tbl_segment();
 </script>
+<%
+	}
+%>
+

@@ -23,7 +23,7 @@ import org.carrot2.examples.ConsoleFormatter;
 import org.carrot2.matrix.factorization.IterationNumberGuesser.FactorizationQuality;
 import org.carrot2.text.preprocessing.pipeline.CompletePreprocessingPipelineDescriptor;
 
-import org.carrot2.shaded.guava.common.collect.Maps;
+import com.google.common.collect.Maps;
 import org.carrot2.source.microsoft.v7.Bing7DocumentSource;
 
 /**

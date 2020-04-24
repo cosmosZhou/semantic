@@ -6,7 +6,7 @@
 <%@page import="java.util.Map"%>
 <%@page import="com.util.Utility"%>
 <%@page import="com.util.MySQL"%>
-<%@page import="com.servlet.Frontier"%>
+<%@page import="com.servlet.Jsp"%>
 <%@page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 <%
 	String cmd = request.getParameter("cmd");
@@ -22,7 +22,7 @@
 			"changeInputlength(mysql.relation_text, true)", "mysql.limit.value = %d",
 			"mysql.training.value = %d"};
 
-	out.print(Frontier.javaScript(String.join(";", lines), text, relation_text, limit, training));
+	out.print(Jsp.javaScript(String.join(";", lines), text, relation_text, limit, training));
 
 	String lang = table.split("_")[2];
 
@@ -35,7 +35,7 @@
 	String sql;
 	List<String> conditions = new ArrayList<String>();
 	if (!text.isEmpty()) {
-		conditions.add(Frontier.process_text("text", relation_text, text));
+		conditions.add(Jsp.process_text("text", relation_text, text));
 	}
 
 	boolean discrepant = false;
@@ -69,11 +69,11 @@
 	List<Map<String, Object>> list;
 	if (discrepant) {
 		list = MySQL.instance.select(sql, lang.equals("cn") ? new MySQL.Filter() {
-			public boolean sift(ResultSet res) throws SQLException {
+			public Object sift(ResultSet res) throws SQLException {
 				return res.getString("infix").equals(Native.infixCN(res.getString("text")));
 			}
 		} : new MySQL.Filter() {
-			public boolean sift(ResultSet res) throws SQLException {
+			public Object sift(ResultSet res) throws SQLException {
 				return res.getString("infix").equals(Native.infixEN(res.getString("text")));
 			}
 		}, limit);
@@ -81,7 +81,7 @@
 		list = MySQL.instance.select(sql);
 	out.print("count(*) = " + list.size());
 	if (!discrepant) {
-		out.print(String.format("<p ondblclick='mysql_execute(this)'>%s</p>", sql));
+		out.print(String.format("<p ondblclick='mysql_execute(this)'>%s</p>", Utility.str_html(sql)));
 	}
 %>
 
@@ -98,7 +98,7 @@
 		for (Map<String, Object> dict : list) {
 			text = (String) dict.get("text");
 			String infix = (String) dict.get("infix");
-			out.print(Frontier.createSyntaxEditor(text, infix,(boolean) (Boolean) dict.get("training")));
+			out.print(Jsp.createSyntaxEditor(text, infix, (boolean) (Boolean) dict.get("training")));
 		}
 	%>
 	<input type=submit name='submit_<%=table%>' value=submit>

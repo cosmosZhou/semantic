@@ -15,8 +15,9 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.carrot2.clustering.lingo.LingoClusteringAlgorithm;
-import org.carrot2.clustering.lingo.LingoClusteringAlgorithmDescriptor;
+import org.carrot2.clustering.stc.STCClusteringAlgorithm;
 import org.carrot2.core.Cluster;
 import org.carrot2.core.Controller;
 import org.carrot2.core.ControllerFactory;
@@ -24,17 +25,18 @@ import org.carrot2.core.Document;
 import org.carrot2.core.IDocumentSource;
 import org.carrot2.core.LanguageCode;
 import org.carrot2.core.ProcessingResult;
-import org.carrot2.text.clustering.MultilingualClustering;
-import org.carrot2.text.clustering.MultilingualClusteringDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.patsnap.core.analysis.bo.CarrotClusterBo;
 import com.patsnap.core.analysis.bo.CarrotPatentInputBo;
 import com.patsnap.core.analysis.bo.CarrotPhraseBo;
 import com.util.HttpClient;
 import com.util.MySQL;
 import com.util.Native;
+import com.util.Utility;
+import com.util.Utility.Timer;
 
 /**
  * Manager for Carrot2 text processes
@@ -97,12 +99,20 @@ public class CarrotManager {
 	 * @return carrot2 controller
 	 */
 	private Controller getController(int depth) {
-		Controller controller = ControllerFactory.create(8, IDocumentSource.class, LingoClusteringAlgorithm.class);
-		final Map<String, Object> attributes = new HashMap<String, Object>();
-		LingoClusteringAlgorithmDescriptor.attributeBuilder(attributes);
-		MultilingualClusteringDescriptor.attributeBuilder(attributes)
-				.languageAggregationStrategy(MultilingualClustering.LanguageAggregationStrategy.FLATTEN_ALL);
-		controller.init(attributes);
+		int availableProcessors = Runtime.getRuntime().availableProcessors();
+		System.out.println("availableProcessors = " + availableProcessors);
+
+//		Controller controller = ControllerFactory.create(availableProcessors, IDocumentSource.class,
+//				LingoClusteringAlgorithm.class);		
+//		final Map<String, Object> attributes = new HashMap<String, Object>();
+//		LingoClusteringAlgorithmDescriptor.attributeBuilder(attributes);
+//		MultilingualClusteringDescriptor.attributeBuilder(attributes)
+//				.languageAggregationStrategy(MultilingualClustering.LanguageAggregationStrategy.FLATTEN_ALL);		
+//		controller.init(attributes);
+
+		Controller controller = ControllerFactory.create(availableProcessors, IDocumentSource.class,
+				STCClusteringAlgorithm.class);
+
 		return controller;
 	}
 
@@ -141,7 +151,8 @@ public class CarrotManager {
 	private ProcessingResult processDepthOneResult(List<Document> documents) {
 		// TODO: can query hint help improve clustering results?
 		log.info("call depth one controller to process {} documents", documents.size());
-		return depthOneController.process(documents, null, LingoClusteringAlgorithm.class);
+		return depthOneController.process(documents, null, STCClusteringAlgorithm.class);
+//		return depthOneController.process(documents, null, LingoClusteringAlgorithm.class);
 	}
 
 	/**
@@ -264,18 +275,18 @@ public class CarrotManager {
 	}
 
 	private List<CarrotPatentInputBo> buildCarrotPatentInputBo(LanguageCode language,
-			List<Map<String, String>> patentDataMap) {
+			List<? extends Map<String, Object>> patentDataMap) {
 		List<CarrotPatentInputBo> carrotPatentInputBoList = new ArrayList<>();
 
-		for (Map<String, String> dict : patentDataMap) {
+		for (Map<String, Object> dict : patentDataMap) {
 			CarrotPatentInputBo carrotPatentInputBo = new CarrotPatentInputBo();
 
-			carrotPatentInputBo.title = dict.get("TTL");
+			carrotPatentInputBo.title = (String) dict.get("TTL");
 
-			carrotPatentInputBo.abstraction = dict.get("ABST");
+			carrotPatentInputBo.abstraction = (String) dict.get("ABST");
 			carrotPatentInputBo.language = language;
 
-			carrotPatentInputBo.patentId = dict.get("_id");
+			carrotPatentInputBo.patentId = (String) dict.get("_id");
 			carrotPatentInputBoList.add(carrotPatentInputBo);
 		}
 		return carrotPatentInputBoList;
@@ -287,7 +298,8 @@ public class CarrotManager {
 	 * @param patentDataMap map of patent_id to patent data
 	 * @return list of carrot cluster
 	 */
-	List<CarrotClusterBo> clusterPatentsToWordClouds(LanguageCode language, List<Map<String, String>> patentDataMap) {
+	List<CarrotClusterBo> clusterPatentsToWordClouds(LanguageCode language,
+			List<? extends Map<String, Object>> patentDataMap) {
 		List<CarrotPatentInputBo> patents = buildCarrotPatentInputBo(language, patentDataMap);
 		ProcessingResult processingResult = processDepthOneResult(buildLingoDocument(patents));
 		return parseProcessingResult(processingResult);
@@ -300,7 +312,7 @@ public class CarrotManager {
 	 * @return list of carrot cluster
 	 */
 	List<CarrotClusterBo> clusterPatentsToSunburstChart(LanguageCode language,
-			List<Map<String, String>> patentDataMap) {
+			List<? extends Map<String, Object>> patentDataMap) {
 		List<CarrotPatentInputBo> patents = buildCarrotPatentInputBo(language, patentDataMap);
 		ProcessingResult processingResult = processDepthTwoResult(buildLingoDocument(patents));
 		return parseProcessingResult(processingResult);
@@ -308,31 +320,110 @@ public class CarrotManager {
 
 	public static CarrotManager instance = new CarrotManager();
 
-	public List<String> getClusteringResult(String language, String text, int rows) throws IOException {
-		List<Map<String, String>> patentDataMap = HttpClient.solr_with_keyword(language, text, rows);
+	public static class ClusteringResult {
+		ClusteringResult(List<String> list, HashMap<String, List<String>> map, int numFromSolr, double solr_duration,
+				double clustering_duration, double postprocessing_duration) {
+			this.list = list;
+			list.sort(new Comparator<String>() {
+				@Override
+				public int compare(String o1, String o2) {
+					return Integer.compare(map.get(o2).size(), map.get(o1).size());
+				}
+			});
+
+			if (list.size() > 50) {
+				this.list = list.subList(0, 50);
+			}
+
+			this.map = map;
+			this.numFromSolr = numFromSolr;
+			this.solr_duration = solr_duration;
+			this.clustering_duration = clustering_duration;
+			this.postprocessing_duration = postprocessing_duration;
+			for (int i = 0; i < cache.length; i++) {
+				if (cache[i] == null) {
+					cache[i] = map;
+					this.cache_index = i;
+					break;
+				}
+			}
+		}
+
+		public List<String> list;
+
+		@JsonIgnore // 可以直接放在field上面表示要忽略的filed
+		public HashMap<String, List<String>> map;
+
+		public double solr_duration;
+		public double clustering_duration;
+		public double postprocessing_duration;
+		public int numFromSolr;
+		public int cache_index;
+
+		@SuppressWarnings("unchecked")
+		public static HashMap<String, List<String>>[] cache = new HashMap[128];
+	}
+
+	public ClusteringResult getClusteringResult(String language, String text, int rows)
+			throws IOException, SolrServerException {
+//		System.out.println("calling public ClusteringResult getClusteringResult(String language, String text, int rows)!");
+		Timer timer = new Utility.Timer();
+		List<? extends Map<String, Object>> patentDataMap = HttpClient.solr_with_keyword(language, text, rows);
+		double solr_duration = timer.report("HttpClient.solr_with_keyword(language, text, rows)");
+
+		int numFromSolr = patentDataMap.size();
+
 		List<String> list = new ArrayList<String>();
+		HashMap<String, List<String>> map = new HashMap<String, List<String>>();
 		if (patentDataMap.isEmpty())
-			return list;
+			return new ClusteringResult(list, map, numFromSolr, solr_duration, 0, 0);
 
 		language = language.toLowerCase();
 		if (language.equals("cn"))
 			language = "zh_cn";
 
-		List<CarrotClusterBo> carrotResult = instance.clusterPatentsToWordClouds(LanguageCode.forISOCode(language),
-				patentDataMap);
+		LanguageCode languageCode = LanguageCode.forISOCode(language);
+		List<CarrotClusterBo> carrotResult = instance.clusterPatentsToWordClouds(languageCode, patentDataMap);
 
 		for (CarrotClusterBo cluster : carrotResult) {
-			if (cluster.phrases.size() != 1) {
-				log.info(String.format("cluster.phrases.size() = %d", cluster.phrases.size()));
+			for (CarrotPhraseBo phrase : cluster.phrases) {
+				list.add(phrase.key);
+				map.put(phrase.key, cluster.documentIds);
 			}
-			if (!cluster.phrases.isEmpty())
-				list.add(cluster.phrases.get(0).key);
 		}
-		log.info("finishing analyzing keyword: " + text);
-		return list;
+//		log.info("finishing analyzing keyword: " + text);
+
+		double clustering_duration = timer.report("clusterPatentsToWordClouds");
+
+		List<String> listPhrases = new ArrayList<String>();
+		switch (languageCode) {
+		case CHINESE_SIMPLIFIED:
+			for (String phrase : list) {
+				if (StopWordManager.Chinese.instance.isStopWord(phrase)) {
+					map.remove(phrase);
+					continue;
+				}
+				listPhrases.add(phrase);
+			}
+			break;
+		case ENGLISH:
+			for (String phrase : list) {
+				if (StopWordManager.English.instance.isStopWord(phrase)) {
+					map.remove(phrase);
+					continue;
+				}
+				listPhrases.add(phrase);
+			}
+			break;
+		default:
+			break;
+		}
+		double postprocessing_duration = timer.report("Native.keyword(jstringArray)");
+		return new ClusteringResult(listPhrases, map, numFromSolr, solr_duration, clustering_duration,
+				postprocessing_duration);
 	}
 
-	public List<String> getClusteringResult(LanguageCode language, List<Map<String, String>> patentDataMap)
+	public List<String> getClusteringResult(LanguageCode language, List<Map<String, Object>> patentDataMap)
 			throws IOException {
 		List<CarrotClusterBo> carrotResult = instance.clusterPatentsToWordClouds(language, patentDataMap);
 		List<String> list = new ArrayList<String>();
@@ -348,10 +439,8 @@ public class CarrotManager {
 	}
 
 	public static void crawlFromSolr(String lang) throws Exception {
-		double positive_training_threshold = 0.95;
-		double negative_training_threshold = 0.05;
-		int sum_positive = 0;
-		int sum_negative = 0;
+//		int sum_positive = 0;
+//		int sum_negative = 0;
 		HashSet<String> backup = new HashSet<String>();
 		HashSet<String> analyzed = new HashSet<String>();
 		String table = String.format("tbl_keyword_%s", lang);
@@ -371,28 +460,18 @@ public class CarrotManager {
 			} while (analyzed.contains(keyword));
 
 			System.out.println("analyzing " + keyword);
-			List<String> list = instance.getClusteringResult(lang, keyword, 1000);
+			List<String> list = instance.getClusteringResult(lang, keyword, 1000).list;
 
 			for (String e : list) {
-				double score = Native.keywordCN(e);
-				int label = (int) Math.floor(score * 2);
-				boolean training;
+				int label = Native.keywordCN(e);
 
-				if (label == 1) {
-					training = score >= positive_training_threshold;
-					positive_training_threshold = (positive_training_threshold * sum_positive + score)
-							/ (sum_positive + 1);
-//					System.out.println("positive_training_threshold = " + positive_training_threshold);
-					++sum_positive;
-				} else {
-					training = score < negative_training_threshold;
-					negative_training_threshold = (negative_training_threshold * sum_negative + score)
-							/ (sum_negative + 1);
-//					System.out.println("negative_training_threshold = " + negative_training_threshold);
-					++sum_negative;
-				}
+//				if (label == 1) {
+//					++sum_positive;
+//				} else {
+//					++sum_negative;
+//				}
 
-				if (MySQL.instance.insert(table, e, label, training ? 1 : 0)) {
+				if (MySQL.instance.insert(table, e, label, 0)) {
 					backup.add(e);
 				}
 			}

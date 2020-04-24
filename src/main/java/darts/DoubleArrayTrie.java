@@ -601,10 +601,10 @@ public class DoubleArrayTrie {
 		pointer = _pointer;
 	}
 
-	void insert(String keyword) {
+	public boolean add(String keyword) {
 		int index = Arrays.binarySearch(key, keyword);
 		if (index >= 0)
-			return;
+			return false;
 		index = -index - 1;
 
 		String[] _key = new String[key.length + 1];
@@ -643,13 +643,13 @@ public class DoubleArrayTrie {
 			}
 			--crutialIndex;
 		}
-
+		return true;
 	}
 
-	void remove(String keyword) {
+	public boolean remove(String keyword) {
 		int index = Arrays.binarySearch(key, keyword);
 		if (index < 0)
-			return;
+			return false;
 
 		String[] _key = new String[key.length - 1];
 		System.arraycopy(key, 0, _key, 0, index);
@@ -681,6 +681,7 @@ public class DoubleArrayTrie {
 				break;
 			unicode = keyword.charAt(parent.size() - 1);
 		}
+		return true;
 	}
 
 	int try_base(TreeMap<Character, State> success) {
@@ -971,7 +972,19 @@ public class DoubleArrayTrie {
 		return result;
 	}
 
+	public boolean contains(String key) {
+		int index = contains_utility(key);
+		if (index < 0) {
+			return false;
+		}
+		return this.key[index].length() == key.length();
+	}
+
 	public int[][] testPrefixSearch() {
+		for (String k : this.key) {
+			assert this.contains(k);
+		}
+
 		int[][] arrs = new int[this.key.length][];
 		int j = 0;
 		for (String key : this.key) {
@@ -1033,6 +1046,42 @@ public class DoubleArrayTrie {
 		return result;
 	}
 
+	int contains_utility(String key) {
+		int pos = 0;
+		int nodePos = -1;
+		int len = key.length();
+
+		int result = -1;
+
+		char[] keyChars = key.toCharArray();
+
+		int b = 0;
+		int base_value;
+
+		for (int i = pos; i < len; ++i) {
+			base_value = pointer[b].base;
+
+			if (b == pointer[b].check && base_value < 0) {
+				result = -base_value - 1;
+			}
+
+			nodePos = b + (keyChars[i]);
+
+			if (b == pointer[nodePos].check)
+				b = pointer[nodePos].base;
+			else
+				return result;
+		}
+
+		base_value = pointer[b].base;
+
+		if (b == pointer[b].check && base_value < 0) {
+			result = -base_value - 1;
+		}
+
+		return result;
+	}
+
 	public static void main(String[] args) throws IOException {
 		ArrayList<String> words = new ArrayList<String>();
 		new Utility.Text("../corpus/ahocorasick/dictionary.txt").collect(words);
@@ -1076,7 +1125,7 @@ public class DoubleArrayTrie {
 				System.out.println(_dat);
 			}
 			_dat.checkValidity();
-			_dat.insert(word);
+			_dat.add(word);
 			if (debug) {
 				System.out.println(_dat);
 			}

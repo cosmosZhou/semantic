@@ -7,17 +7,21 @@
 
 <body>
 	<form name=mysql method=post>
-		lang = <select id=lang name=lang>
-			<option value="en">en</option>
-			<option value="cn" selected>cn</option>
-			<option value="de">de</option>
-			<option value="fr">fr</option>
-			<option value="ja">ja</option>
-		</select> text = <input id=text type=text name=text> rows = <input
-			id=rows type='text' name=rows style='width: 4em;' value=10000
-			onkeyup="input_positive_integer(this)"
-			onafterpaste="input_positive_integer(this)"> <input
-			id=submit_query type=submit name=submit_query value=query>
+		<a href="javaScript:add_solr_item()">add concurrency instance...</a>
+		<div>
+			lang = <select name=lang>
+				<option value="en">en</option>
+				<option value="cn" selected>cn</option>
+				<option value="de">de</option>
+				<option value="fr">fr</option>
+				<option value="ja">ja</option>
+			</select> text = <input type=text name=text> rows = <input type='text'
+				name=rows style='width: 4em;' value=10000
+				onkeyup="input_positive_integer(this)"
+				onafterpaste="input_positive_integer(this)">
+		</div>
+
+		<input id=submit_query type=submit name=submit_query value=query>
 	</form>
 
 </body>
