@@ -1,6 +1,7 @@
 package test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,43 @@ public class Test {
 				System.out.println("text = " + text);
 				System.out.println("segFromCpp  = " + segFromCpp);
 				System.out.println("segFromPython = " + segFromPython);
+				err += 1;
+			}
+		}
+
+		System.out.println("err = " + err);
+		System.out.println("sum = " + sum);
+		System.out.println("acc = " + ((sum - err) * 1.0 / sum));
+	}
+
+	public static void test_pos() throws Exception {
+		int err = 0;
+		int sum = 0;
+		for (Map<String, Object> dict : MySQL.instance
+				.select("select* from tbl_syntax_cn order by rand() limit 10000")) {
+			++sum;
+			String text = (String) dict.get("text");
+			String infix = (String) dict.get("infix");
+
+			List<String> segList = new ArrayList<String>();
+			for (String[] group : Utility.regex(infix, "\\(*([^()]+)\\)*")) {
+				segList.add(group[0].split("/")[0]);
+			}
+
+			String seg[] = Utility.toArray(segList);
+
+			String segFromCpp[] = Native.posCN(seg);
+
+			for (int i = 0; i < seg.length; i++) {
+				seg[i] = String.format("'%s'", Utility.quote(seg[i]));
+			}
+
+			String[] segFromPython = Utility.dejsonify(
+					Python.eval(String.format("pos_tag([%s], lang='cn')", String.join(",", seg))), String[].class);
+			if (!Utility.equals(segFromCpp, segFromPython)) {
+				System.out.println("text = " + text);
+				System.out.println("segFromCpp    = " + String.join(", ", segFromCpp));
+				System.out.println("segFromPython = " + String.join(", ", segFromPython));
 				err += 1;
 			}
 		}
@@ -113,7 +151,8 @@ public class Test {
 	}
 
 	public static void main(String[] args) throws Exception {
-		test_cws();
+//		test_cws();
+		test_pos();
 //		test_keyword_cn();
 //		test_keyword_en();
 //		Native.keywordCN("");

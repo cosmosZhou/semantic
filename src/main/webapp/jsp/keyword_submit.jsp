@@ -12,7 +12,7 @@
 	assert text.length == label.length;
 	assert text.length == training.length;
 	out.print(Jsp.join(MySQL.instance.insert("tbl_keyword_" + lang, text, label, training)));
-	out.print(Jsp.javaScript("changeTable('tbl_keyword_%s')", lang));
+	out.print(Jsp.javaScript("changeTable('keyword_%s')", lang));
 
 	switch (lang) {
 	case "cn":

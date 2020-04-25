@@ -3,8 +3,8 @@
 <%@ page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 
 <%
-	out.print(Jsp.join(MySQL.instance.insert("tbl_segment_cn", request.getParameterValues("text"),
-			request.getParameterValues("seg"), request.getParameterValues("training"))));
+	out.print(Jsp.join(MySQL.instance.insert("tbl_syntax_cn", request.getParameterValues("text"),
+			request.getParameterValues("infix"), request.getParameterValues("training"))));
 %>
 <br>
 model configuration:
@@ -24,9 +24,9 @@ model configuration:
 	= <input type=text name=pretraining_weight value=0.5
 		onkeyup='input_nonnegative_number(this)'
 		onafterpaste='input_nonnegative_number'> <br> <input
-		type=submit name=tbl_segment_cn_training value=training>
+		type=submit name=tbl_syntax_cn_training value=training>
 </form>
 
 <script>
-	changeTable('tbl_segment_cn');
+	changeTable('syntax_cn');
 </script>

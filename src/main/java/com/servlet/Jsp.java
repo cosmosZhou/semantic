@@ -1,45 +1,83 @@
 package com.servlet;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 
 import com.util.Utility;
 
 public class Jsp {
+	public static String[] getParameterNames(HttpServletRequest request) {
+		ArrayList<String> list = new ArrayList<String>();
+		Enumeration<String> paramNames = request.getParameterNames();
+		while (paramNames.hasMoreElements()) {
+			String paramName = (String) paramNames.nextElement();
+
+			String[] paramValues = request.getParameterValues(paramName);
+			if (paramValues.length > 0) {
+				String paramValue = paramValues[0];
+				if (paramValue.length() != 0) {
+					list.add(paramName);
+				}
+			}
+		}
+		return list.toArray(new String[list.size()]);
+	}
+
+	public static String[] getParameterNames(HttpServletRequest request, String regex) {
+		ArrayList<String> list = new ArrayList<String>();
+		Enumeration<String> paramNames = request.getParameterNames();
+		while (paramNames.hasMoreElements()) {
+			String paramName = (String) paramNames.nextElement();
+
+			String[] paramValues = request.getParameterValues(paramName);
+			if (paramValues.length > 0) {
+				String paramValue = paramValues[0];
+				if (paramValue.length() != 0) {
+					if (Pattern.compile(regex).matcher(paramName).find())
+						list.add(paramName);
+				}
+			}
+		}
+		return list.toArray(new String[list.size()]);
+	}
+
 	public static String createSyntaxEditor(String text, String infix, boolean training) {
 		@SuppressWarnings("unchecked")
 		HashMap<String, String> dict = Utility.dejsonify(
-				Python.eval(String.format("compiler.compile('%s').__str__(return_dict=True)", infix)), HashMap.class);
+				Python.eval(String.format("compiler.compile('%s').__str__(return_dict=True)", Utility.quote(infix))),
+				HashMap.class);
 
 		String infix_simplified = dict.get("infix");
 		String seg = dict.get("seg");
 		String pos = dict.get("pos");
 		String dep = dict.get("dep");
 
-		String lines[] = { "<div name=structure_division>",
-				String.format("<br><input type=hidden name=text value = '%s'>%s<br>", text, text),
-				String.format(
-						"<input type=hidden name=infix value = '%s'><p class=monospace-p name=infixExpression>%s</p>",
-						infix, infix),
+		String lines[] = { String.format("<div><input type=hidden name=text value='%s'>%s", text, text),
+				String.format("<input type=hidden name=infix value='%s'>", Utility.quote_html(infix)),
 				String.format("<p class=monospace-p name=tree>%s</p>",
 						dict.get("tree").replaceAll(" ", "&ensp;").replaceAll("\\n", "<br>")),
 				String.format(
 						"<input type=text name=infix_simplified style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
 						String.format("width:%dem;", (Utility.strlen(infix_simplified) / 2 + 1)),
-						infix_simplified.replaceAll(" ", "&ensp;")),
+						Utility.quote_html(infix_simplified).replaceAll(" ", "&ensp;")),
 				String.format(
 						"<input type=text name=seg style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
-						String.format("width:%dem;", (Utility.strlen(seg) / 2 + 1)), seg.replaceAll(" ", "&ensp;")),
+						String.format("width:%dem;", (Utility.strlen(seg) / 2 + 1)),
+						Utility.quote_html(seg).replaceAll(" ", "&ensp;")),
 				String.format(
 						"<input type=text name=pos style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
 						String.format("width:%dem;", (Utility.strlen(pos) / 2 + 1)), pos.replaceAll(" ", "&ensp;")),
 				String.format(
 						"<input type=text name=dep style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
 						String.format("width:%dem;", (Utility.strlen(dep) / 2 + 1)), dep.replaceAll(" ", "&ensp;")),
-				String.format("</div><input type=hidden name=training value=%d>", training ? 1 : 0) };
+				String.format("<br><input type=hidden name=training value=%d></div>", training ? 1 : 0) };
 
 		return String.join("", lines);
 	}
@@ -93,12 +131,25 @@ public class Jsp {
 	}
 
 	public static String createParaphraseEditor(String x, String y, int score, boolean training, boolean changed) {
-		String lines[] = { String.format("<div name=div><input type=hidden name=x value='%s'>", Utility.quote_html(x)),
-				String.format("<input type=hidden name=y value='%s'>", Utility.quote_html(y)),
+		String lines[] = {
+				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
+				String.format("<input type=hidden name=paraphrase value='%s'>", Utility.quote_html(y)),
 				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)),
 				String.format(
 						"<input type=text name=score style='width:2.5em;' value=%d onkeyup='input_positive_integer(this)' onafterpaste='input_positive_integer(this)' onchange='changeColor(this, this.nextElementSibling)'>",
 						score),
+				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div><br>" };
+
+		return String.join("", lines);
+	}
+
+	public static String createTranslationEditor(String x, String y, boolean training, boolean changed) {
+		String lines[] = {
+				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
+				String.format("%s<br>", Utility.str_html(x)),
+				String.format(
+						"<input type=text name=translation style='%s' value='%s' onchange='changeColor(this, this.nextElementSibling)'>",
+						String.format("width:%dem;", Utility.strlen(y) / 2 + 1), Utility.quote_html(y)),
 				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div><br>" };
 
 		return String.join("", lines);

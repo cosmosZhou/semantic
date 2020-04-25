@@ -16,37 +16,37 @@
 	String cmd = request.getParameter("cmd");
 	String table = request.getParameter("table");
 
-	String x = request.getParameter("x");
-	String relation_x = request.getParameter("relation_x");
+	String text = request.getParameter("text");
+	String relation_text = request.getParameter("relation_text");
 
-	String y = request.getParameter("y");
-	String relation_y = request.getParameter("relation_y");
+	String paraphrase = request.getParameter("paraphrase");
+	String relation_paraphrase = request.getParameter("relation_paraphrase");
 
 	int training = Jsp.getTraining(request);
 	String rand = request.getParameter("rand");
 	int limit = Jsp.getLimit(request);
 
-	String lines[] = {"mysql.cmd.value = '%s'", "mysql.x.value = '%s'", "mysql.relation_x.value = '%s'",
-			"mysql.y.value = '%s'", "mysql.relation_y.value = '%s'",
-			"changeInputlength(mysql.relation_x, true)", "changeInputlength(mysql.relation_y, true)",
+	String lines[] = {"mysql.cmd.value = '%s'", "mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
+			"mysql.paraphrase.value = '%s'", "mysql.relation_paraphrase.value = '%s'",
+			"changeInputlength(mysql.relation_text, true)", "changeInputlength(mysql.relation_paraphrase, true)",
 			"mysql.training.value = %d", "mysql.rand.checked = %s", "mysql.limit.value = %s",
 			"if (mysql.cmd.value != 'select*') onchangeTable(mysql.cmd)"};
 
-	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(x), relation_x, Utility.quote(y),
-			relation_y, training, rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit)));
+	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text, Utility.quote(paraphrase),
+			relation_paraphrase, training, rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit)));
 
-	String lang = table.split("_")[2];
+	String lang = table.split("_")[1];
 
 	System.out.println("limit = " + limit);
 
 	String sql;
 	List<String> conditions = new ArrayList<String>();
-	if (!x.isEmpty()) {
-		conditions.add(Jsp.process_text("x", relation_x, x));
+	if (!text.isEmpty()) {
+		conditions.add(Jsp.process_text("text", relation_text, text));
 	}
 
-	if (!y.isEmpty()) {
-		conditions.add(Jsp.process_text("y", relation_y, y));
+	if (!paraphrase.isEmpty()) {
+		conditions.add(Jsp.process_text("paraphrase", relation_paraphrase, paraphrase));
 	}
 
 	boolean discrepant = false;
@@ -67,17 +67,17 @@
 	switch (cmd) {
 		case "update" :
 			cmd = "select*";
-			sql = String.format("%s from %s %s", cmd, table, condition);
+			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 
 			break;
 		case "delete" :
-			sql = String.format("%s from %s %s", cmd, table, condition);
+			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 			out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
 					Utility.str_html(sql)));
-			sql = String.format("select* from %s %s", table, condition);
+			sql = String.format("select* from tbl_%s %s", table, condition);
 			break;
 		default :
-			sql = String.format("%s from %s %s", cmd, table, condition);
+			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 	}
 
 	List<Map<String, Object>> list;
@@ -106,8 +106,7 @@
 %>
 
 <div>
-	insert into
-	<%=table%>(x, y, score) values( <input type=button
+	insert into tbl_<%=table%>(text, paraphrase, score) values( <input type=button
 		onClick='add_paraphrase_item(this.parentElement.getElementsByTagName("div")[0], "")'
 		value=text> / <input id=file name=file type=file
 		onchange='handleFiles(this, add_paraphrase_item' value=text
@@ -123,19 +122,19 @@
 			switch (cmd) {
 				case "update" :
 					for (Map<String, Object> dict : list) {
-						out.print(Jsp.createParaphraseEditor((String) dict.get("x"), (String) dict.get("y"),
+						out.print(Jsp.createParaphraseEditor((String) dict.get("text"), (String) dict.get("paraphrase"),
 								(Integer) dict.get("score"), (boolean) (Boolean) dict.get("training"), false));
 					}
 					break;
 				case "delete" :
 					for (Map<String, Object> dict : list) {
-						out.print(Jsp.createParaphraseEditor((String) dict.get("x"), (String) dict.get("y"),
+						out.print(Jsp.createParaphraseEditor((String) dict.get("text"), (String) dict.get("paraphrase"),
 								(Integer) dict.get("score"), (boolean) (Boolean) dict.get("training"), false));
 					}
 					break;
 				default :
 					for (Map<String, Object> dict : list) {
-						out.print(Jsp.createParaphraseEditor((String) dict.get("x"), (String) dict.get("y"),
+						out.print(Jsp.createParaphraseEditor((String) dict.get("text"), (String) dict.get("paraphrase"),
 								(Integer) dict.get("score"), (boolean) (Boolean) dict.get("training"), false));
 					}
 

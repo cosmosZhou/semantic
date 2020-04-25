@@ -1,25 +1,25 @@
 "use strict";
 var tableSelector = [
-	'tbl_segment_cn',
-	'tbl_keyword_cn',
-	'tbl_keyword_en',
-	'tbl_paraphrase_cn',
-	'tbl_paraphrase_en',	
-	'tbl_intent',
-	'tbl_phatic',
-	'tbl_qatype',
-	'tbl_repertoire',
-	'tbl_service',
-	'tbl_syntax_cn',
-	'tbl_translation',
-	'tbl_pretraining_cn',
-	'tbl_pretraining_en',
+	'segment_cn',
+	'keyword_cn',
+	'keyword_en',
+	'paraphrase_cn',
+	'paraphrase_en',	
+	'intent_cn',
+	'phatic_cn',
+	'qatype_cn',
+	'repertoire_cn',
+	'service_cn',
+	'syntax_cn',
+	'toChinese_en',
+	'pretraining_cn',
+	'pretraining_en',
 	];
 
 function request_get(url, data, callback, args) {
 	// console.log('data =');
 	// console.log(data);
-	$.ajax({
+	return $.ajax({
 		url: url,
 		type: 'get',
 		data: data,
@@ -57,8 +57,8 @@ function request_post(url, data, dataType) {
 	});
 }
 
-function invoke_python(python, callback, args) {
-	request_get({ python: python }, callback, args);
+function invoke_python(script) {
+	return request_post('algorithm/python', script);
 }
 
 function input_positive_integer(input) {
@@ -189,12 +189,12 @@ function like_statement(text, method) {
 	if (method)
 		onchange += `if (this.value == "!=") this.nextElementSibling.value = "${method}";`;
 	
-	var like = generateSelector(['like', 'like binary', 'regexp', '=', 'not like', 'not like binary', 'not regexp', '!='], 'regexp', `relation_${text}`, onchange, 'width:3.2em;', "non-arrowed");
+	var like = generateSelector(['like', 'like binary', 'regexp', 'regexp binary', '=', 'not like', 'not like binary', 'not regexp', 'not regexp binary', '!='], 'regexp', `relation_${text}`, onchange, 'width:3.2em;', "non-arrowed");
 	return `${text} ${like}<input id=${text} type=text name=${text} style='width:8em;' onkeydown='changeInputlength(this);'>`;
 }
 
 function selectTable(table, text) {
-	return generateSelector(['select*', 'delete', 'update'], 'select*', 'cmd', "onchangeTable(this)", '', "non-arrowed") + " from " 
+	return generateSelector(['select*', 'delete', 'update'], 'select*', 'cmd', "onchangeTable(this)", '', "non-arrowed") + " from tbl_" 
 		+ generateSelector(window.tableSelector, table, 'table', 'changeTable(this.value)') 
 		+ 'where ' + like_statement(text);
 }
@@ -403,13 +403,13 @@ function changeLimit(random) {
 function changeTable(tablename) {
 	var div = document.getElementById("division");
 	switch (tablename) {
-		case "tbl_intent":
+		case "intent_cn":
 			request_get(
 				{
 					variable: 'serviceSelector',
 				},
 				function (serviceSelector) {
-					div.innerHTML = selectTable('tbl_intent', 'text')
+					div.innerHTML = selectTable('intent', 'text')
 						+ "and service =" + generateSelector(serviceSelector, '', 'service', 'update_slotSelector(this)', 'width:5em;')
 						+ `and intent.<select id='slot' name=slot style='width:5em;'></select> like <input id=entity type='text' name=entity style='width:3em;' onkeydown='changeInputlength(this);'>`
 						+ `and training = <input id=training type='text' name=training style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
@@ -421,7 +421,7 @@ function changeTable(tablename) {
 			);
 
 			break;
-		case "tbl_service":
+		case "service_cn":
 			request_get(
 				{
 					variable: 'categorycontextSelector',
@@ -431,7 +431,7 @@ function changeTable(tablename) {
 					var contextSelector = res[1];
 					var strContextSelector = generateSelector(contextSelector, '', 'context', '', 'width:5em;');
 
-					div.innerHTML = selectTable('tbl_service', 'text')
+					div.innerHTML = selectTable('service', 'text')
 						+ `and context =${strContextSelector}`
 						+ "and service =" + generateSelector(categorySelector, '', 'service', '', 'width:5em;')
 						+ training_check() + rand_check(true) + limit_check(40)
@@ -441,13 +441,13 @@ function changeTable(tablename) {
 			);
 
 			break;
-		case "tbl_repertoire":
+		case "repertoire_cn":
 			request_get(
 				{
 					variable: 'serviceSelector',
 				},
 				function (serviceSelector) {
-					div.innerHTML = selectTable('tbl_repertoire', 'text')
+					div.innerHTML = selectTable('repertoire', 'text')
 						+ "and service =" + generateSelector(serviceSelector, '', 'service', 'update_slotSelector(this)', 'width:5em;')
 						+ "and slot =" + generateSelector([''], '', 'slot', 'update_codeSelector(this)', 'width:5em;')
 						+ "and code =" + generateSelector([''], '', 'code', '', 'width:5em;')
@@ -459,109 +459,82 @@ function changeTable(tablename) {
 			);
 
 			break;
-		case "tbl_paraphrase_cn":
-			div.innerHTML = selectTable('tbl_paraphrase_cn', 'x')
-				+ 'and ' + like_statement('y')
+		case "paraphrase_cn":
+			div.innerHTML = selectTable('paraphrase_cn', 'text')
+				+ 'and ' + like_statement('paraphrase')
 				+ "and score " + generateComparisonRelation('relation')
 				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
 				+ training_check() + rand_check(true) + limit_check(40);
-			mysql.x.focus();
 			break;
-		case "tbl_paraphrase_en":
-			div.innerHTML = selectTable('tbl_paraphrase_en', 'x')
-				+ 'and ' + like_statement('y')
+		case "paraphrase_en":
+			div.innerHTML = selectTable('paraphrase_en', 'text')
+				+ 'and ' + like_statement('paraphrase')
 				+ "and score " + generateComparisonRelation('relation')
 				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
 				+ training_check() + rand_check(true) + limit_check(40);
-			mysql.x.focus();
 			break;
-		case "tbl_translation":
-			div.innerHTML = selectTable('tbl_translation', 'x')
-				+ 'and ' + like_statement('y')
+		case "toChinese_en":
+			div.innerHTML = selectTable('toChinese_en', 'text')
+				+ 'and ' + like_statement('translation')
 				+ training_check() + rand_check(false) + limit_check(40);
-			mysql.x.focus();
 			break;
-		case "tbl_semantic":
-			div.innerHTML = selectTable('tbl_semantic', 's1')
-				+ 'and ' + like_statement('s2')
-				+ `and rebut = <input id=rebut type='text' name=rebut style='width:2em;' onkeyup= "input_integer(this)" onafterpaste="input_integer(this)">`
-				+ training_check() + rand_check(true) + limit_check(40);
-			mysql.s1.focus();
-			break;
-
-		case "tbl_syntax_cn":
-			div.innerHTML = selectTable('tbl_syntax_cn', 'text')
-				+ "and text.length " + generateComparisonRelation('relation')
-				+ `<input id=char_length type='text' name=char_length style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
+		case "syntax_cn":
+			div.innerHTML = selectTable('syntax_cn', 'text')
 				+ 'and ' + like_statement('infix')
-				+ training_check() + rand_check(true) + limit_check(40);
-			mysql.text.focus();
+				+ training_check() + rand_check(false) + limit_check(40);
 			break;
-		case "tbl_segment_cn":
-			div.innerHTML = selectTable('tbl_segment_cn', 'text')
+		case "segment_cn":
+			div.innerHTML = selectTable('segment_cn', 'text')
 				+ "and " + like_statement('seg')
 // + "and text.length " + generateComparisonRelation('relation')
 // + `<input id=char_length type='text' name=char_length style='width:2.5em;'
 // onkeyup= "input_positive_integer(this)"
 // onafterpaste="input_positive_integer(this)">`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
-			mysql.text.focus();
 			break;
-		case "tbl_phatic":
+		case "phatic_cn":
 			var labelSelector = generateSelector(['NEUTRAL', 'PERTAIN'], '', 'label', '', 'width:5em;');
 
-			div.innerHTML = selectTable('tbl_phatic', 'text')
+			div.innerHTML = selectTable('phatic', 'text')
 				+ `and label =${labelSelector}`
 				+ training_check() + rand_check(true) + limit_check(40);
-			mysql.text.focus();
-
 			break;
-		case "tbl_qatype":
+		case "qatype_cn":
 			var labelSelector = generateSelector(['QUERY', 'REPLY'], '', 'label', '', 'width:5em;');
 
-			div.innerHTML = selectTable('tbl_qatype', 'text')
+			div.innerHTML = selectTable('qatype', 'text')
 				+ `and label =${labelSelector}`
 				+ training_check() + rand_check(true) + limit_check(40);
-			mysql.text.focus();
-
 			break;
-		case "tbl_keyword_cn":
+		case "keyword_cn":
 			var labelSelector = generateSelectorIndexed(["untechnical", 'technical'], '', 'label', '');			
 			
-			div.innerHTML = selectTable('tbl_keyword_cn', 'text')
+			div.innerHTML = selectTable('keyword_cn', 'text')
 				+ "and label = " + labelSelector 
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
-			mysql.text.focus();
-
 			break;
-		case "tbl_keyword_en":
+		case "keyword_en":
 			var labelSelector = generateSelectorIndexed(["untechnical", 'technical'], '', 'label', '');			
 			
-			div.innerHTML = selectTable('tbl_keyword_en', 'text')
+			div.innerHTML = selectTable('keyword_en', 'text')
 				+ "and label = " + labelSelector
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
-			mysql.text.focus();
-
 			break;
-		case "tbl_pretraining_cn":			
-			div.innerHTML = selectTable('tbl_pretraining_cn', 'title')
+		case "pretraining_cn":			
+			div.innerHTML = selectTable('pretraining_cn', 'title')
 				+ "and " + like_statement('text')				
 				+ rand_check(false) + limit_check(40, 1000);
-			mysql.text.focus();
-
 			break;
-		case "tbl_pretraining_en":
-			div.innerHTML = selectTable('tbl_pretraining_en', 'title')
+		case "pretraining_en":
+			div.innerHTML = selectTable('pretraining_en', 'title')
 				+ "and " + like_statement('text')				
 				+ rand_check(false) + limit_check(40, 1000);
-			mysql.text.focus();
-
 			break;
 		default:
 			div.innerHTML = selectTable('', 'text') + training_check() + rand_check(true) + limit_check(40);
-			mysql.text.focus();
 			break;
 	}
+	mysql.text.focus();
 }
 
 function strlen(s) {
@@ -669,9 +642,6 @@ function add_ner_field(div, text, service, slot) {
 
 		}
 	);
-
-
-
 }
 
 function update_html(container) {
@@ -874,10 +844,10 @@ function add_paraphrase_item(div, sentence) {
 	console.log('score = ' + score);
 
 	var html = "<div name=paraphrase_division>";
-	html += `<input type='text' name='x[]' value = '${x}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> / `;
-	html += `<input type='text' name='y[]' value = '${y}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> = `;
+	html += `<input type='text' name='text' value = '${x}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> / `;
+	html += `<input type='text' name='paraphrase' value = '${y}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> = `;
 	html += `<input type='text' name=score[] style='width:2.5em;' value = ${score} onkeyup='input_positive_integer(this)' onafterpaste='input_positive_integer(this)' onchange='changeColor(this, this.nextElementSibling)'>`;
-	html += "<input type='hidden' name='training[]' value = '+1'>";
+	html += "<input type=hidden name='training[]' value = '+1'>";
 	html += "</div><br>";
 	var columnSize = 6;
 
@@ -926,7 +896,7 @@ function add_semantic_item(div, sentence) {
 	html += ' = ';
 	html += generateSelector(categorySelector, category, 'service[]', 'changeColor(this, this.nextElementSibling)');
 
-	html += "<input type='hidden' name='training[]' value = '+1'><br>";
+	html += "<input type=hidden name='training[]' value = '+1'><br>";
 
 	var columnSize = 6;
 
@@ -971,7 +941,7 @@ function add_qatype_item(div, sentence) {
 	html += ' = ';
 	html += generateSelector(['QUERY', 'REPLY'], label, 'label[]', 'changeColor(this, this.nextElementSibling)');
 
-	html += "<input type='hidden' name='training[]' value = '+1'><br>";
+	html += "<input type=hidden name='training[]' value = '+1'><br>";
 
 	var columnSize = 4;
 
@@ -1011,7 +981,7 @@ function add_phatics_item(div, sentence) {
 	html += ' = ';
 	html += generateSelector(['NEUTRAL', 'PERTAIN'], label, 'label[]', 'changeColor(this, this.nextElementSibling)');
 
-	html += "<input type='hidden' name='training[]' value = '+1'><br>";
+	html += "<input type=hidden name='training[]' value = '+1'><br>";
 
 	var columnSize = 4;
 
@@ -1051,7 +1021,7 @@ function add_keyword_item_utility(label, text) {
 	
 	html += generateSelectorIndexed(["untechnical", "technical"], label, 'label', 'changeColor(this, this.nextElementSibling)');
 	
-	html += `<input type='hidden' name='training' value = '+${training}'><br><br>`;
+	html += `<input type=hidden name='training' value = '+${training}'><br><br>`;
 	return html;
 }
 
@@ -1100,7 +1070,7 @@ function add_keyword_item(div, text) {
 		div.children[i * columnSize + 1].value = label[i - 1];
 	}
 }
-
+ 
 function onchange_segment_text(self){
 	var seg = self.nextElementSibling.nextElementSibling;
 	var training = seg.nextElementSibling;
@@ -1136,7 +1106,7 @@ function add_segment_item_utility(text, seg) {
 	style = "width:{0}em;".format(Math.max(strlen(seg) / 2 + 1, 32));
 	html += `<input type=text name=seg style='${style}' value='${seg}' class=monospace onchange='onchange_segment(this)' onkeydown='onkeydown_segment(this, event)'>`;
 	
-	html += `<input type='hidden' name='training' value='+${training}'><br><br>`;
+	html += `<input type=hidden name='training' value='+${training}'><br><br>`;
 	return html;
 }
 
@@ -1184,6 +1154,105 @@ function add_segment_item(div, text){
 	}	
 }
 
+function onchange_syntax_text(self){
+	var div = self.parentElement;
+	
+	var tree = self.nextElementSibling;
+	var infix_simplified = tree.nextElementSibling;
+	var seg = infix_simplified.nextElementSibling.nextElementSibling;
+	var pos = seg.nextElementSibling.nextElementSibling;
+	var dep = pos.nextElementSibling.nextElementSibling;
+	
+	var training = div.lastElement;
+	
+	changeColor(self, training);
+	request_post('algorithm/syntax', self.value).done(dict =>{
+		console.log("result from java:");
+		console.log(dict);
+		seg.value = dict['seg'];
+		pos.value = dict['pos'];
+		dep.value = dict['dep'];
+		tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
+		infix_simplified.value = dict['infix'];
+		training.value = dict['training'];
+	});
+}
+
+function add_syntax_item_utility(text) {
+	console.log("text = " + text);
+	if (text.startsWith('{') && text.endsWith('}')){
+		var json = JSON.parse(text);
+		console.log("json = ");
+		console.log(json);
+		
+		text = json.text;
+		var infix = json.infix;
+		var training = json.training;
+		console.log("text = " + text);
+		console.log("infix = " + infix);		
+	}
+	else{
+		var training = Math.floor(Math.random() * 2);
+		console.log("randomly set training");
+		var seg = '';
+		var pos = '';
+		var dep = '';
+		var infix_simplified = '';
+		var infix = '';
+		var tree = '';
+	}
+	
+	var style = "width:{0}em;".format(Math.max(strlen(text) / 2 + 1, 50));
+	text = quote_html(text);
+	
+	var html = `<div><input type=text name=text style='${style}' value='${text}' placeholder='input a natural language sentence and press tab key to view its hierarchical dependency structure' class=monospace onchange='onchange_syntax_text(this)' onkeydown='changeInputlength(this, true, 32)>`;
+	infix = quote_html(infix);
+	html += `<input type=hidden name=infix value='${infix}'>`;
+	
+	tree = str_html(tree);
+	html += `<p class=monospace-p name=tree>${tree}</p>`;	
+	
+	style = "width:{0}em;".format(Math.max(strlen(infix_simplified) / 2 + 1, 32));
+	infix_simplified = quote_html(infix_simplified);
+	html += `<input type=text name=infix_simplified style='${style}' class=monospace value='${infix_simplified}' onchange='modify_structure(this)'><br>`;
+	
+	style = "width:{0}em;".format(Math.max(strlen(seg) / 2 + 1, 32));
+	seg = quote_html(seg);
+	html += `<input type=text name=seg style='${style}' class=monospace value='${seg}' onchange='modify_structure(this)'><br>`;
+	
+	style = "width:{0}em;".format(Math.max(strlen(pos) / 2 + 1, 32));
+	html += `<input type=text name=pos style='${style}' class=monospace value='${pos}' onchange='modify_structure(this)'><br>`;
+
+	style = "width:{0}em;".format(Math.max(strlen(dep) / 2 + 1, 32));
+	html += `<input type=text name=dep style='${style}' class=monospace value='${dep}' onchange='modify_structure(this)'><br>`;
+
+	html += `<br><input type=hidden name=training value='+${training}'></div>`;
+	return html;
+}
+
+function add_syntax_item(form, text){
+	if (text instanceof Array){
+		var html = "";
+		for (let txt of text){
+			if (txt.length > 0) {
+				html += add_syntax_item_utility(txt, infix);	
+			}			
+		}		
+	}	
+	else{
+		var infix = '';
+		var html = add_syntax_item_utility(text, infix);
+	}
+	
+	for (let div of form.children) {
+		if (div.children[0].type != 'text') 
+			break;
+		update_html(div);
+	}
+
+	form.innerHTML = html + form.innerHTML;
+}
+
 function add_repertoire_item(div, text) {
 	console.log('text = ' + text);
 	var service = $("select[name=service_added]").val();
@@ -1212,7 +1281,7 @@ function add_repertoire_item(div, text) {
 
 	html += generateSelector(subslotSelector[slot], code, 'code[]', 'changeColor(this, this.nextElementSibling)');
 
-	html += "<input type='hidden' name='training[]' value='+'><br>";
+	html += "<input type=hidden name='training[]' value='+'><br>";
 
 	var columnSize = 7;
 
@@ -1973,6 +2042,10 @@ function quote_html(param) {
 	return param.replace(/&/g, "&amp;").replace(/'/g, "&apos;").replace(/\\/, "\\\\");
 }
 
+function str_html(param) {
+	return param.replace(/&/g, "&amp;").replace(/<(?=[a-zA-Z!/])/g, "&lt;");
+}
+
 function quote(param) {
 	return param.replace(/\\/, "\\\\").replace(/'/g, "\\'");
 }
@@ -2031,12 +2104,9 @@ function onchange_segment(self) {
 }
 
 function modify_structure(self) {
-	var siblings = self.parentElement.children;
-
-	for (var i = 0; i < siblings.length; i++) {
-		var element = siblings[i];
+	for (let element of self.parentElement.children) {
 		var name = element.getAttribute('name');
-		// var name element.name;
+		// var name = element.name;
 		switch (name) {
 			case 'infixExpression':
 				var infixExpression = element;
@@ -2056,8 +2126,8 @@ function modify_structure(self) {
 			case 'tree':
 				var tree = element;
 				break;
-			case 'infix[]':
-				var infixExpressionHidden = element;
+			case 'infix':
+				var infixExpression = element;
 				break;
 			default:
 				// console.log("element.getAttribute('class') = " +
@@ -2071,16 +2141,16 @@ function modify_structure(self) {
 
 	if (infix_simplified == self) {
 		var infix = infix_simplified.value;
-		var res = modify_infix(infix, infixExpressionHidden.value);
+		var res = modify_infix(infix, infixExpression.value);
 		var pos_original = res[0];
 		var index = res[1];
 
-		invoke_python(`compiler.compile('${infix}', ${pos_original}, index=${index}).__str__(return_dict=True)`, function (dict) {
+		invoke_python(`compiler.compile('${infix}', ${pos_original}, index=${index}).__str__(return_dict=True)`).done(dict => {
 			console.log('dict from python =');
 			console.log(dict);
 			tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
-			infixExpression.innerHTML = dict['infixExpression'];
-			infixExpressionHidden.value = dict['infixExpression'];
+			
+			infixExpression.value = dict['infixExpression'];
 
 			infix_simplified.value = dict['infix'];
 			seg.value = dict['seg'];
@@ -2096,7 +2166,7 @@ function modify_structure(self) {
 		var segArr = seg.value.trim().split(/\s+/g);
 		var posArr = pos.value.trim().split(/\s+/g);
 
-		var arr = matchAll(infixExpressionHidden.value, /\(*([^()]+)\)*/g);
+		var arr = matchAll(infixExpression.value, /\(*([^()]+)\)*/g);
 		console.log('matchAll result =');
 		console.log(arr);
 		for (var i = 0; i < arr.length; i++) {
@@ -2121,12 +2191,12 @@ function modify_structure(self) {
 		segArr = JSON.stringify(segArr);
 		posArr = JSON.stringify(posArr);
 
-		invoke_python(`compiler.parse_from_segment(${segArr}, ${posArr}).__str__(return_dict=True)`, function (dict) {
+		invoke_python(`compiler.parse_from_segment(${segArr}, ${posArr}).__str__(return_dict=True)`).done(dict => {
 			console.log('dict from python =');
 			console.log(dict);
 			tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
-			infixExpression.innerHTML = dict['infixExpression'];
-			infixExpressionHidden.value = dict['infixExpression'];
+			
+			infixExpression.value = dict['infixExpression'];
 
 			infix_simplified.value = dict['infix'];
 			seg.value = dict['seg'];
@@ -2140,13 +2210,13 @@ function modify_structure(self) {
 	}
 	else if (dep == self) {
 
-		var infix = infixExpressionHidden.value;
+		var infix = infixExpression.value;
 		var depArr = dep.value;
-		invoke_python(`compiler.compile('${infix}', dep='${depArr}'.split()).__str__(return_dict=True)`, function (dict) {
+		invoke_python(`compiler.compile('${infix}', dep='${depArr}'.split()).__str__(return_dict=True)`).done(dict => {
 			console.log('dict from python =');
 			console.log(dict);
-			infixExpression.innerHTML = dict['infixExpression'];
-			infixExpressionHidden.value = dict['infixExpression'];
+			
+			infixExpression.value = dict['infixExpression'];
 			dep.value = dict['dep'];
 			changeInputlength(dep, true);
 		});
@@ -2154,15 +2224,14 @@ function modify_structure(self) {
 	}
 	else if (seg == self) {
 
-		var infix = infixExpressionHidden.value;
+		var infix = infixExpression.value;
 		var segArr = seg.value;
-		invoke_python(`compiler.parse_from_segment('${segArr}'.split()).__str__(return_dict=True)`, function (dict) {
+		invoke_python(`compiler.parse_from_segment('${segArr}'.split()).__str__(return_dict=True)`).done(dict => {
 			console.log('dict from python =');
 			console.log(dict);
 			tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
 
-			infixExpression.innerHTML = dict['infixExpression'];
-			infixExpressionHidden.value = dict['infixExpression'];
+			infixExpression.value = dict['infixExpression'];
 
 			infix_simplified.value = dict['infix'];
 			changeInputlength(infix_simplified, true);
@@ -2179,7 +2248,7 @@ function modify_structure(self) {
 
 	}
 
-	changeColor(self, self.parentElement.nextElementSibling);
+	changeColor(self, self.parentElement.lastChild);
 }
 
 function data_clipboard_target(self) {

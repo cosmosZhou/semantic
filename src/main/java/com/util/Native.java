@@ -8,11 +8,15 @@ import org.ahocorasick.trie.Trie;
 public class Native {
 
 	public native static void reinitializeCWSTagger();
+	
+	public native static void reinitializePOSTagger();
 
 	public native static void reinitializeKeywordCN();
 
 	public native static void reinitializeKeywordEN();
 
+	public native static String[] posCN(String[] long_array);
+	
 	public native static String[] segmentCN(String text);
 
 	public native static String[][] segmentCNs(String[] long_array);

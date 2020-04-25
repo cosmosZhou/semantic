@@ -11,24 +11,23 @@
 <%
 	String cmd = request.getParameter("cmd");
 	String table = request.getParameter("table");
-	int limit = Integer.valueOf(request.getParameter("limit"));
-	int training = Integer.valueOf(request.getParameter("training"));
 	String text = request.getParameter("text");
-	text = text.replace("\\", "\\\\");
+
+	int limit = Jsp.getLimit(request);
+
+	int training = Jsp.getTraining(request);
+	String rand = request.getParameter("rand");
 
 	String relation_text = request.getParameter("relation_text");
 
 	String lines[] = {"mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
-			"changeInputlength(mysql.relation_text, true)", "mysql.limit.value = %d",
+			"changeInputlength(mysql.relation_text, true)", "mysql.rand.checked = %s", "mysql.limit.value = %s",
 			"mysql.training.value = %d"};
 
-	out.print(Jsp.javaScript(String.join(";", lines), text, relation_text, limit, training));
+	out.print(Jsp.javaScript(String.join(";", lines), Utility.quote(text), relation_text,
+			rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit), training));
 
-	String lang = table.split("_")[2];
-
-	if (cmd.startsWith("select*")) {
-		cmd = "select text, infix, training";
-	}
+	String lang = table.split("_")[1];
 
 	System.out.println("limit = " + limit);
 
@@ -47,16 +46,16 @@
 	}
 
 	String condition = conditions.isEmpty() ? "" : "where " + String.join(" and ", conditions) + " ";
-	if (request.getParameter("rand") != null)
+	if (rand != null)
 		condition += "order by rand() ";
 
-	if (!discrepant)
+	if (!discrepant && limit >= 0)
 		condition += "limit " + limit;
 
 	//	if (cmd.equals("update")) {
 	//		sql = String.format("%s %s set infix = %s %s", cmd, table, infix, condition);
 	//	} else {
-	sql = String.format("%s from %s %s", cmd, table, condition);
+	sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 	//	}
 
 	System.out.println(sql);
@@ -79,20 +78,22 @@
 		}, limit);
 	} else
 		list = MySQL.instance.select(sql);
-	out.print("count(*) = " + list.size());
 	if (!discrepant) {
-		out.print(String.format("<p ondblclick='mysql_execute(this)'>%s</p>", Utility.str_html(sql)));
+		out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>",
+				Utility.str_html(sql)));
 	}
 %>
 
 <div>
-	insert into
-	<%=table%>(text, label) values( <input type=button
+	insert into tbl_<%=table%>(text, label) values( <input type=button
 		onClick='add_syntax_item(this.parentElement.nextElementSibling, "")'
 		value=text> / <input id=syntax_file name=syntax_file type=file
 		onchange='handleFiles(this, add_syntax_item)' value='text'
-		accept='.txt' style='width: 5em;' title=''>, ...)<br> <br>
+		accept='.txt' style='width: 5em;' title=''>, ...)<br>
 </div>
+<%
+	out.print("count(*) = " + list.size());
+%>
 <form name=form method=post>
 	<%
 		for (Map<String, Object> dict : list) {
@@ -101,7 +102,7 @@
 			out.print(Jsp.createSyntaxEditor(text, infix, (boolean) (Boolean) dict.get("training")));
 		}
 	%>
-	<input type=submit name='submit_<%=table%>' value=submit>
+	<input type=submit name='<%=table%>_submit' value=submit>
 </form>
 <script>
 	fill_tbl_syntax();

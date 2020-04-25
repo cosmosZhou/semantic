@@ -43,7 +43,7 @@
 			Utility.quote(title), rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit),
 			replacement != null ? Utility.quote(replacement) : null));
 
-	String lang = table.split("_")[2];
+	String lang = table.split("_")[1];
 
 	System.out.println("limit = " + limit);
 
@@ -89,21 +89,21 @@
 
 			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
 					Utility.str_html(sql)));
-			sql = String.format("select* from %s %s", table, condition);
+			sql = String.format("select* from tbl_%s %s", table, condition);
 		} else {
 			cmd = "select*";
-			sql = String.format("%s from %s %s", cmd, table, condition);
+			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 		}
 
 		break;
 	case "delete":
-		sql = String.format("%s from %s %s", cmd, table, condition);
+		sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 		out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
 				Utility.str_html(sql)));
-		sql = String.format("select* from %s %s", table, condition);
+		sql = String.format("select* from tbl_%s %s", table, condition);
 		break;
 	default:
-		sql = String.format("%s from %s %s", cmd, table, condition);
+		sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 	}
 
 	List<Map<String, Object>> list = MySQL.instance.select(sql);
@@ -112,8 +112,7 @@
 %>
 
 <div>
-	insert into
-	<%=table%>(text, title) values( <input type=button
+	insert into tbl_<%=table%>(text, title) values( <input type=button
 		onClick='add_pretraining_item(this.parentElement.nextElementSibling, "")'
 		value=text> / <input id=syntax_file name=syntax_file type=file
 		onchange='handleFiles(this, add_pretraining_item)' value='text'

@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Vector;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -43,6 +44,8 @@ import org.jblas.DoubleMatrix;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.util.Utility.RegexIterator;
+import com.util.Utility.Replacer;
 
 public class Utility {
 	public static void main(String[] args) throws Exception {
@@ -1831,26 +1834,27 @@ public class Utility {
 	 * quote for javaScript or python language
 	 */
 	public static String quote(String param) {
-//		if (param == null)
-//			return "";
 		return param.replace("\\", "\\\\").replace("'", "\\'");
 	}
 
+	/*
+	 * quote for html language within the input tag
+	 */
 	public static String quote_html(String param) {
-//		if (param == null)
-//			return "";		
 		return param.replace("&", "&amp;").replace("'", "&apos;").replace("\\", "\\\\");
 	}
 
+	/*
+	 * quote for html language as text node
+	 */
 	public static String str_html(String param) {
-//		if (param == null)
-//			return "";		
 		return param.replace("&", "&amp;").replaceAll("<(?=[a-zA-Z!/])", "&lt;");
 	}
 
+	/*
+	 * quote for mysql language for query
+	 */
 	public static String quote_mysql(String param) {
-//		if (param == null)
-//			return "";		
 		return param.replace("'", "''").replace("\\", "\\\\");
 	}
 
@@ -1931,4 +1935,86 @@ public class Utility {
 		}
 		return result;
 	}
+
+	public static class RegexIterator implements Iterator<String[]>, Iterable<String[]> {
+		Matcher matcher;
+		// int beginIndex = 0;
+
+		public RegexIterator(String str, String regex) {
+			matcher = Pattern.compile(regex).matcher(str);
+		}
+
+		@Override
+		public boolean hasNext() {
+			return matcher.find();
+		}
+
+		@Override
+		public java.lang.String[] next() {
+			// if (beginIndex != matcher.start()) {
+			// String res = "parsing error for " + str;
+			// res += "\n" + "regex = " + regex;
+			// res += "\n" + "regex = " + regex;
+			// res += "\n" + "str + beginIndex = " + str.substring(beginIndex);
+			// res += "\n" + "str + matcher.start() = " + str.substring(matcher.start());
+			// throw new Exception(res);
+			// }
+			String[] group = new String[matcher.groupCount()];
+			for (int i = 0; i < group.length; ++i)
+				group[i] = matcher.group(i + 1);
+			// x.add(group);
+			// beginIndex = matcher.end();
+
+			return group;
+		}
+
+		@Override
+		public RegexIterator iterator() {
+			// TODO Auto-generated method stub
+			return this;
+		}
+	}
+
+	public static RegexIterator regex(String str, String regex) throws Exception {
+		return new RegexIterator(str, regex);
+	}
+
+	public static String[] regexSingleton(String str, String regex) {
+		Pattern pattern = Pattern.compile(regex);
+		Matcher matcher = pattern.matcher(str);
+		String[] x = null;
+		int beginIndex = 0;
+		if (matcher.find()) {
+			if (beginIndex != matcher.start()) {
+				return x;
+			}
+			x = new String[matcher.groupCount() + 1];
+			for (int i = 0; i < x.length; ++i)
+				x[i] = matcher.group(i);
+		}
+		return x;
+	}
+
+	public interface Replacer {
+		String replace(String str);
+	}
+
+	public static String replace(String str, String regex, Replacer replacer) throws Exception {
+		Pattern pattern = Pattern.compile(regex);
+		Matcher matcher = pattern.matcher(str);
+		String tmp = "";
+		int beginIndex = 0;
+		while (matcher.find()) {
+			if (beginIndex != matcher.start()) {
+				tmp += str.substring(beginIndex, matcher.start());
+			}
+			tmp += replacer.replace(matcher.group(0));
+			beginIndex = matcher.end();
+		}
+		if (beginIndex == 0)
+			return str;
+		tmp += str.substring(beginIndex);
+		return tmp;
+	}
+
 }

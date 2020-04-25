@@ -8,7 +8,7 @@
 			request.getParameterValues("y"), request.getParameterValues("score"),
 			request.getParameterValues("training"))));
 
-	out.print(Jsp.javaScript("changeTable('tbl_paraphrase_%s')", lang));
+	out.print(Jsp.javaScript("changeTable('paraphrase_%s')", lang));
 %>
 <br>
 model configuration:

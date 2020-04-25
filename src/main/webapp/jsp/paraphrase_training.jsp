@@ -34,7 +34,7 @@
 	out.print("<br>" + result);
 	out.print("<br>press enter to view the discrepant training / testing instances!");
 
-	out.print(Jsp.javaScript("changeTable('tbl_paraphrase_%s')", lang));
+	out.print(Jsp.javaScript("changeTable('paraphrase_%s')", lang));
 %>
 
 <script>

@@ -53,7 +53,7 @@
 		Random rnd = new Random();
 			for (String _text : result.list) {
 				List<Map<String, Object>> sqlResult = MySQL.instance
-						.select_from("select label from %s where text = '%s'", table, _text);
+						.select_from("select label from tbl_%s where text = '%s'", table, _text);
 
 				boolean changed;
 				int label = -1;

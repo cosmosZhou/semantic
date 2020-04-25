@@ -27,7 +27,7 @@
 	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text, label, training,
 			rand == null ? "false" : "true", limit));
 
-	String lang = table.split("_")[2];
+	String lang = table.split("_")[1];
 
 	System.out.println("limit = " + limit);
 
@@ -62,7 +62,7 @@
 	if (cmd.equals("update")) {
 		sql = String.format("%s %s set label = %s %s", cmd, table, label, condition);
 	} else {
-		sql = String.format("%s from %s %s", cmd, table, condition);
+		sql = String.format("%s from tbl_%s %s", cmd, table, condition);
 	}
 
 	System.out.println(sql);
@@ -70,7 +70,7 @@
 		if (!discrepant)
 			out.print(String.format("<p class=%s ondblclick='mysql_execute(this)'>%s</p>", cmd,
 					Utility.str_html(sql)));
-		sql = String.format("select* from %s %s", table, condition);
+		sql = String.format("select* from tbl_%s %s", table, condition);
 	}
 
 	List<Map<String, Object>> list;
@@ -113,8 +113,7 @@
 %>
 
 <div>
-	insert into
-	<%=table%>(text, label) values( <input type=button
+	insert into tbl_<%=table%>(text, label) values( <input type=button
 		onClick='add_keyword_item(this.parentElement.nextElementSibling, "")'
 		value=text> / <input id=keyword_file name=keyword_file
 		type=file onchange='handleFiles(this, add_keyword_item)' value='text'

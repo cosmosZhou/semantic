@@ -47,7 +47,7 @@
 
 	}
 
-	out.print(Jsp.javaScript("changeTable('tbl_keyword_%s')", lang));
+	out.print(Jsp.javaScript("changeTable('keyword_%s')", lang));
 %>
 
 <script>

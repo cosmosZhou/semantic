@@ -239,7 +239,16 @@ public class Algorithm {
 		return HttpClientWebApp.instance.service(request.getParameter("text"));
 	}
 
-//	http://127.0.0.1:8080/nlp/algorithm/java/service/播放下一站下一站传奇城乘风破浪
+	@POST
+	@Path("python")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String python(@Context HttpServletRequest request) throws Exception {
+		String script = request.getReader().readLine();
+		return Python.eval(script);
+	}
+
+	// http://127.0.0.1:8080/nlp/algorithm/java/service/播放下一站下一站传奇城乘风破浪
 	@GET
 	@Path("java/service/{text}")
 	@Produces("text/plain;charset=utf-8")
@@ -516,6 +525,47 @@ public class Algorithm {
 			map = result.get(0);
 		}
 
+		return Utility.jsonify(map);
+	}
+
+	@SuppressWarnings("unchecked")
+	@POST
+	@Path("syntax")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String syntax(@Context HttpServletRequest request) throws Exception {
+		String text = request.getReader().readLine();
+		List<Map<String, Object>> result = MySQL.instance.select_from("select* from tbl_syntax_cn where text = '%s'",
+				Utility.quote_mysql(text));
+
+		Map<String, Object> map;
+		if (result.isEmpty()) {
+			String seg[] = Native.segmentCN(text);
+			String pos[] = Native.posCN(seg);
+
+			for (int i = 0; i < pos.length; i++) {
+				pos[i] = String.format("'%s'", pos[i]);
+				seg[i] = String.format("'%s'", Utility.quote(seg[i]));
+			}
+
+			String json = Python.eval(String.format("compiler.parse_from_segment([%s], [%s]).__str__(return_dict=True)",
+					String.join(",", seg), String.join(",", pos)));
+
+			map = Utility.dejsonify(json, HashMap.class);
+
+			map.put("training", "+" + new Random().nextInt(2));
+		} else {
+			map = result.get(0);
+			String infix = (String) map.get("infix");
+
+			HashMap<String, Object> dict = Utility.dejsonify(
+					Python.eval(
+							String.format("compiler.compile('%s').__str__(return_dict=True)", Utility.quote(infix))),
+					HashMap.class);
+			map.putAll(dict);
+		}
+
+		System.out.println("dict = " + map);
 		return Utility.jsonify(map);
 	}
 
