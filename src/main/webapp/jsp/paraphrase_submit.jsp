@@ -4,11 +4,11 @@
 
 <%
 	String lang = (String) request.getAttribute("lang");
-	out.print(Jsp.join(MySQL.instance.insert("tbl_paraphrase_" + lang, request.getParameterValues("x"),
-			request.getParameterValues("y"), request.getParameterValues("score"),
+	out.print(Jsp.join(MySQL.instance.insert("tbl_paraphrase_" + lang, request.getParameterValues("text"),
+			request.getParameterValues("paraphrase"), request.getParameterValues("score"),
 			request.getParameterValues("training"))));
 
-	out.print(Jsp.javaScript("changeTable('paraphrase_%s')", lang));
+	out.print(Jsp.javaScript("onchange_table('paraphrase', '%s')", lang));
 %>
 <br>
 model configuration:

@@ -1,19 +1,17 @@
 "use strict";
-var tableSelector = [
-	'segment_cn',
-	'keyword_cn',
-	'keyword_en',
-	'paraphrase_cn',
-	'paraphrase_en',	
-	'intent_cn',
-	'phatic_cn',
-	'qatype_cn',
-	'repertoire_cn',
-	'service_cn',
-	'syntax_cn',
-	'toChinese_en',
-	'pretraining_cn',
-	'pretraining_en',
+var tablenames = [
+	'segment',
+	'keyword',
+	'paraphrase',	
+	'lexicon',	
+	'intent',
+	'phatic',
+	'qatype',
+	'repertoire',
+	'service',
+	'syntax',
+	'toChinese',
+	'pretraining',
 	];
 
 function request_get(url, data, callback, args) {
@@ -120,7 +118,7 @@ function limit_check(limit, max) {
 }
 
 function generateComparisonRelation(name) {
-	return generateSelector(['=', '!=', '>', '>=', '<', '<='], '=', name, 'changeInputlength(this, true)', 'width:1em;', "non-arrowed");
+	return generateSelector(['=', '!=', '>', '>=', '<', '<='], '=', 'relation_' + name, 'changeInputlength(this, true)', 'width:1em;', "non-arrowed");
 }
 
 function generateSelector(selector, fieldSelected, name, onchange, style, classname) {
@@ -193,103 +191,152 @@ function like_statement(text, method) {
 	return `${text} ${like}<input id=${text} type=text name=${text} style='width:8em;' onkeydown='changeInputlength(this);'>`;
 }
 
-function selectTable(table, text) {
-	return generateSelector(['select*', 'delete', 'update'], 'select*', 'cmd', "onchangeTable(this)", '', "non-arrowed") + " from tbl_" 
-		+ generateSelector(window.tableSelector, table, 'table', 'changeTable(this.value)') 
-		+ 'where ' + like_statement(text);
+function generateEqualityRelation(label) {
+	var onchange = 'changeInputlength(this, true); ';	
+	return generateSelector(['=', '!='], '=', `relation_${label}`, onchange, 'width:1em;', "non-arrowed");
 }
 
-function onchangeTable(self) {
+function tableSelector(table, lang, text) {	
+	return generateSelector(['select', 'delete', 'update', 'insert'], 'select', 'cmd', "onchange_cmd(this)", '', "non-arrowed") + "* from tbl_" 
+		+ generateSelector(window.tablenames, table, 'table', 
+				`onchange_table(this.value, this.nextElementSibling.value);`) 
+				+"_"
+		+ generateSelector(['cn', 'en', 'fr', 'de', 'ja'], lang, 'lang', '', '', "non-arrowed")
+		+ ' where ' + like_statement(text);
+}
+
+function onchange_cmd_insert(div){	
+	var y_before = div.childNodes[1].nextSibling.nextElementSibling.nextSibling;
+	// set seg = replace(seg,
+	console.log('y_before = ');
+	var set_clause = y_before.textContent;
+	var y_before_str = "and " + set_clause.substr(4, set_clause.indexOf("=") - 2);		
+	console.log(y_before_str);		
+
+	var y = y_before.nextSibling;
+	console.log('y = ');
+	console.log(y);	
+	
+	if (set_clause.indexOf("replace") >= 0){
+		var y_after = y.nextSibling;
+		console.log('y_after = ');
+		console.log(y_after);	
+		
+		var y_replacement = y_after.nextSibling;
+		console.log('y_replacement = ');
+		console.log(y_replacement);	
+
+		var y_replacement_after = y_replacement.nextSibling;
+		console.log('y_replacement_after = ');
+		console.log(y_replacement_after);	
+		div.removeChild(y_replacement);
+		div.removeChild(y_replacement_after);
+		
+		var training_rand = y.nextElementSibling;
+		while (['training','rand'].indexOf(training_rand.name) < 0){
+			training_rand = training_rand.nextElementSibling;
+		}
+		var x_next = training_rand.previousSibling;
+		
+		console.log('x_next = ');
+		console.log(x_next);	
+		
+		div.removeChild(y_before);		
+		div.removeChild(y);
+					
+		div.insertBefore(y, x_next);
+		div.removeChild(y_after);
+		
+		var select = document.createElement('select');
+		select.setAttribute('name', 'relation_' + y.name);
+		select.setAttribute('class', 'non-arrowed');
+		select.setAttribute('style', 'width:3.2em;');
+		select.setAttribute('onchange', "changeInputlength(this, true)");
+		select.appendChild(new Option('like', 'like'));
+		select.appendChild(new Option('like binary', 'like binary'));
+		select.appendChild(new Option('regexp', 'regexp'));
+		select.appendChild(new Option('=', '='));
+		
+		select.appendChild(new Option('not like', 'not like'));
+		select.appendChild(new Option('not like binary', 'not like binary'));
+		select.appendChild(new Option('not regexp', 'not regexp'));
+		select.appendChild(new Option('!=', '!='));
+		select.value = 'regexp';
+		
+		y_before_str = y_before_str.substr(0, y_before_str.length - 2);				
+		div.insertBefore(select, y);
+		y = select;
+
+		div.insertBefore(document.createTextNode(y_before_str), y);			
+	}
+	else{
+		div.removeChild(y_before);
+		div.removeChild(y);
+	}
+}
+
+function onchange_cmd(self) {
 	var div = self.parentElement;
 	var from_clause = div.childNodes[1];
 	console.log('from_clause = ');
 	console.log(from_clause);
-	
+	var from_clause_str = from_clause.nodeValue;
 	switch (self.value){
-	case 'update':		
+	case 'update':
+		from_clause.nodeValue = " tbl_";
+		
 		console.log("update is selected");
-		var where_clause = div.childNodes[3];
+		var where_clause = div.childNodes[5];
 		console.log('where_clause = ');
 		console.log(where_clause);
 		
-		var y_before = div.childNodes[6];
-		console.log('y_before = ');
-		console.log(y_before);
+		var y = div.children[div.children.length - 4];
 		
-		var y = div.childNodes[7];
+		var replaceClause = y.type == 'text' && y.onkeyup == null && y.getAttribute('onafterpaste') == null;		
 		
-		var y_after = div.childNodes[8];
-		if (y_after.nodeName != '#text'){
-			div.removeChild(y);
-			y = y_after;
-			y_after = div.childNodes[8];
-		}	
+		var y_before = y.previousSibling;
 		
-		console.log('y = ');
-		console.log(y);
-	
-		console.log('y_after = ');
-		console.log(y_after);
-		
-		div.removeChild(y_before);
-		div.removeChild(y);		
-		
-		var text_after_y = $(y_after).text();
-		console.log("$(y_after).text() = " + text_after_y);
-		
-		var mid = text_after_y.indexOf("and");
-		
-		div.insertBefore(document.createTextNode(text_after_y.substr(mid)), y_after);
-		div.removeChild(y_after);
-		
-		div.removeChild(from_clause);		
-		
-		var text_before_y = y_before.textContent;
-		var set_clause = "set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
-		if (!set_clause.endsWith(" = "))
-			set_clause += "= ";	
-		
-		console.log("y.type = " + y.type);		
-		
-		switch (y.type){
-		case 'select-one':		
-			div.insertBefore(document.createTextNode(set_clause), where_clause);
+		if (replaceClause){
+			if (y_before.nodeName != "#text"){			
+				div.removeChild(y_before);
+				y_before = y.previousSibling;
+			}		
 			
-			if (y.value === -1){
-				y.value = 0;
-			}
-			else if (Number.isInteger(y.value)){
-				var new_value = y.value + 1;
-				if (new_value == y.options.length){
-					y.value = new_value;
-					if (y.value == -1)
-						y.value = 0;
-				}else{
-					y.value = 0;
-				}
+			var y_after = y.nextSibling;			
+			
+			console.log('y = ');
+			console.log(y);
+		
+			console.log('y_after = ');
+			console.log(y_after);
+			
+			div.removeChild(y);		
+			
+			var text_after_y = $(y_after).text();
+			console.log("$(y_after).text() = " + text_after_y);
+			
+			var mid = text_after_y.indexOf("and");
+			
+			y_after.nodeValue = text_after_y.substr(mid);
+			
+			if (y_before == where_clause){
+				var text_before_y = y_before.textContent;
+				var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("where") + 5);
+				where_clause.nodeValue = "where";
+				where_clause.nextSibling.nodeValue = where_clause.nextSibling.nodeValue.substr(3);
 			}
 			else{
-				for (var i = 0; i < y.options.length; ++i){
-					if (y.options[i].value == y.value)
-						break;
-				}
-				++i; 
-// y.options.length - 1 for default,
-				if (i >= y.options.length - 1){
-					i = 0;
-				}
-				
-				if (!y.options[i].text){
-					y.value = y.options[0].value;
-				}
-				else{
-					y.value = y.options[i].value;	
-				}			
+				div.removeChild(y_before);
+				var text_before_y = y_before.textContent;
+				var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
 			}
-			text_after_y = text_after_y.substr(0, mid);
-			break;
-		case 'text':
+			if (!set_clause.endsWith(" = "))
+				set_clause += "= ";	
+			
+			console.log("y.type = " + y.type);		
+			
 			console.log("y.name = "+ y.name);
+
 			set_clause += 'replace({0}, '.format(y.name);
 			div.insertBefore(document.createTextNode(set_clause), where_clause);
 			var replacement = y.cloneNode(false);
@@ -300,94 +347,124 @@ function onchangeTable(self) {
 			div.insertBefore(y, where_clause);
 			div.insertBefore(document.createTextNode(", "), where_clause);
 			
-			y.focus();
-			
-			y = replacement;
 			text_after_y = ') ';
-			break;	
+			
+			div.insertBefore(replacement, where_clause);
+			div.insertBefore(document.createTextNode(text_after_y), where_clause);
+				
+			y.focus();			
+		}
+		else{
+			// dependent variable is restricted to number input
+			if (y_before.nodeName != "#text"){
+				y_before = y_before.previousSibling;
+			}		
+			
+			var y_after = y.nextSibling;			
+			
+			console.log('y = ');
+			console.log(y);
+		
+			console.log('y_after = ');
+			console.log(y_after);
+			
+			var text_after_y = $(y_after).text();
+			console.log("$(y_after).text() = " + text_after_y);
+			
+			var mid = text_after_y.indexOf("and");
+			
+			y_after.nodeValue = text_after_y.substr(mid);
+			
+			var text_before_y = y_before.textContent;
+			var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
+
+			if (!set_clause.endsWith(" = "))
+				set_clause += "= ";	
+			
+			var replacement = y.cloneNode(true);
+						
+			if (y.type == 'select-one'){
+				var selectedIndex = y.selectedIndex + 1;
+				console.log('selectedIndex = ' + selectedIndex);
+				if (y.children.length - selectedIndex <= 1){
+					selectedIndex = 0;					
+				}
+				console.log('selectedIndex = ' + selectedIndex);
+				replacement.selectedIndex = selectedIndex;
+			}
+			else{
+				replacement.value = y.value;	
+			}
+			
+			replacement.name = y.name + '_replacement';
+			replacement.id = y.id + '_replacement';
+			
+			div.insertBefore(document.createTextNode(set_clause), where_clause);
+			
+			div.insertBefore(replacement, where_clause);
+			replacement.focus();
+		}
+		break;
+	case "select":
+		if (from_clause_str.indexOf("*") >= 0)
+			return;
+		from_clause.nodeValue = "* from tbl_";
+		if (from_clause_str.indexOf("from") >= 0)			
+			return;		
+		onchange_cmd_insert(div);
+		break;
+	case "delete":
+		if (from_clause_str.startsWith("from"))
+			return;
+		from_clause.nodeValue = "from tbl_";
+		if (from_clause_str.indexOf("from") >= 0)			
+			return;				
+		
+		onchange_cmd_insert(div);
+		break;
+	case "insert":
+		from_clause.nodeValue = "into tbl_";
+		var table = from_clause.nextSibling.value;
+		var where_clause = div.childNodes[5];
+		var args= [];
+		var arg = where_clause;
+		while(true){
+			var arg = arg.nextSibling;
+			if (arg.nodeName == '#text'){
+				arg.nodeValue = ", ";
+				continue;
+			}
+			if (arg.name.indexOf("relation") >= 0){
+				var relation = arg;
+				arg = arg.nextSibling;
+				div.removeChild(relation);							
+			}
+			if (arg.name == 'training')
+				break;
+			args.push(arg.name);
+			arg.setAttribute('onkeyup', `onkeyup_input(event)`);
 		}
 		
-		div.insertBefore(y, where_clause);
-		div.insertBefore(document.createTextNode(text_after_y), where_clause);
-		break;
-// case "select*":
-// case "delete":
-	default:
-		console.log(self.value + " is selected");
-		var table = div.childNodes[1];
-		console.log('table = ');
-		console.log(table);
-		if (table.name == 'table'){
-			var where_clause = div.childNodes[5];
-			console.log('where_clause = ');
-			console.log(where_clause);
-			
-			var y_before = div.childNodes[2];
-			// set seg = replace(seg,
-			console.log('y_before = ');
-			var y_before_str = y_before.textContent;
-			y_before_str = "and " + y_before_str.substr(4, y_before_str.indexOf("=") - 2);
-			console.log(y_before_str);		
-			
-			var y = div.childNodes[3];
-			console.log('y = ');
-			console.log(y);	
-			
-			var y_after = div.childNodes[4];
-			console.log('y_after = ');
-			console.log(y_after);	
-	
-			if (y.type == 'text'){
-				var y_replacement = div.childNodes[5];
-				console.log('y_replacement = ');
-				console.log(y_replacement);	
-
-				var y_replacement_after = div.childNodes[6];
-				console.log('y_replacement_after = ');
-				console.log(y_replacement_after);	
-				div.removeChild(y_replacement);
-				div.removeChild(y_replacement_after);
-			}
-
-			var x_next = div.childNodes[8];
-			
-			console.log('x_next = ');
-			console.log(x_next);	
-			
-			div.removeChild(y_before);		
-			div.removeChild(y);
-			div.removeChild(y_after);
-
-						
-			div.insertBefore(y, x_next);
-
-			if (y.type == 'text'){				
-				var select = document.createElement('select');
-				select.setAttribute('name', 'relation_' + y.name);
-				select.setAttribute('class', 'non-arrowed');
-				select.setAttribute('style', 'width:3.2em;');
-				select.setAttribute('onchange', "changeInputlength(this, true)");
-				select.appendChild(new Option('like', 'like'));
-				select.appendChild(new Option('like binary', 'like binary'));
-				select.appendChild(new Option('regexp', 'regexp'));
-				select.appendChild(new Option('=', '='));
-				
-				select.appendChild(new Option('not like', 'not like'));
-				select.appendChild(new Option('not like binary', 'not like binary'));
-				select.appendChild(new Option('not regexp', 'not regexp'));
-				select.appendChild(new Option('!=', '!='));
-				select.value = 'regexp';
-				
-				y_before_str = y_before_str.substr(0, y_before_str.length - 2);				
-				div.insertBefore(select, y);
-				y = select;
-			}
-
-			div.insertBefore(document.createTextNode(y_before_str), y);
-			
-			div.insertBefore(document.createTextNode(" from "), table);
+		while (arg){
+			var next = arg.nextSibling;
+			div.removeChild(arg);
+			arg = next;
 		}
-		break;		
+		div.insertBefore(document.createTextNode("(" + args.join(", ") + ") values("), where_clause);
+		div.removeChild(where_clause);
+		div.lastChild.nodeValue = "), (";
+		
+		var file = document.createElement('input');
+		file.type = 'file';		
+		file.setAttribute('onchange', `handleFiles(this, add_${table}_item)`);
+		file.accept = '.txt';
+		file.style = 'width: 5em;';		
+		div.appendChild(file);
+		div.appendChild(document.createTextNode(")"));
+		
+		div.nextElementSibling.remove();
+		mysql.text.focus();
+		break;
 	}
 	
 }
@@ -400,28 +477,30 @@ function changeLimit(random) {
 
 }
 
-function changeTable(tablename) {
+function onchange_table(tablename, lang) {
+	console.log("tablename = " + tablename);
+	console.log("lang = " + lang);
 	var div = document.getElementById("division");
 	switch (tablename) {
-		case "intent_cn":
+		case "intent":
 			request_get(
 				{
 					variable: 'serviceSelector',
 				},
 				function (serviceSelector) {
-					div.innerHTML = selectTable('intent', 'text')
+					div.innerHTML = tableSelector('intent', lang, 'text')
 						+ "and service =" + generateSelector(serviceSelector, '', 'service', 'update_slotSelector(this)', 'width:5em;')
 						+ `and intent.<select id='slot' name=slot style='width:5em;'></select> like <input id=entity type='text' name=entity style='width:3em;' onkeydown='changeInputlength(this);'>`
 						+ `and training = <input id=training type='text' name=training style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
 						+ `and syntactic = <input id=syntactic type='text' name=syntactic style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
-						+ timestamp_select + rand_check(true) + limit_check(40)
+						+ timestamp_select + rand_check(false) + limit_check(40, 1000)
 						+ "acquire from" + generateSelector(['', 'python', '云之声'], '', 'log');
 					mysql.text.focus();
 				}
 			);
 
 			break;
-		case "service_cn":
+		case "service":
 			request_get(
 				{
 					variable: 'categorycontextSelector',
@@ -431,107 +510,92 @@ function changeTable(tablename) {
 					var contextSelector = res[1];
 					var strContextSelector = generateSelector(contextSelector, '', 'context', '', 'width:5em;');
 
-					div.innerHTML = selectTable('service', 'text')
+					div.innerHTML = tableSelector('service', lang, 'text')
 						+ `and context =${strContextSelector}`
 						+ "and service =" + generateSelector(categorySelector, '', 'service', '', 'width:5em;')
-						+ training_check() + rand_check(true) + limit_check(40)
+						+ training_check() + rand_check(false) + limit_check(40, 1000)
 						+ "acquire from" + generateSelector(['', 'log', '云之声'], '', 'log');
 					mysql.text.focus();
 				}
 			);
 
 			break;
-		case "repertoire_cn":
+		case "repertoire":
 			request_get(
 				{
 					variable: 'serviceSelector',
 				},
 				function (serviceSelector) {
-					div.innerHTML = selectTable('repertoire', 'text')
+					div.innerHTML = tableSelector('repertoire', lang, 'text')
 						+ "and service =" + generateSelector(serviceSelector, '', 'service', 'update_slotSelector(this)', 'width:5em;')
 						+ "and slot =" + generateSelector([''], '', 'slot', 'update_codeSelector(this)', 'width:5em;')
-						+ "and code =" + generateSelector([''], '', 'code', '', 'width:5em;')
-						+ "and text.length " + generateComparisonRelation('relation')						
+						+ "and code =" + generateSelector([''], '', 'code', '', 'width:5em;')						
 						+ `<input id=char_length type='text' name=char_length style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
-						+ rand_check(true) + limit_check(40);
+						+ rand_check(false) + limit_check(40, 1000);
 					mysql.text.focus();
 				}
 			);
 
 			break;
-		case "paraphrase_cn":
-			div.innerHTML = selectTable('paraphrase_cn', 'text')
+		case "paraphrase":
+			div.innerHTML = tableSelector('paraphrase', lang, 'text')
 				+ 'and ' + like_statement('paraphrase')
-				+ "and score " + generateComparisonRelation('relation')
+				+ "and score " + generateComparisonRelation('score')
 				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
-				+ training_check() + rand_check(true) + limit_check(40);
-			break;
-		case "paraphrase_en":
-			div.innerHTML = selectTable('paraphrase_en', 'text')
-				+ 'and ' + like_statement('paraphrase')
-				+ "and score " + generateComparisonRelation('relation')
-				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
-				+ training_check() + rand_check(true) + limit_check(40);
-			break;
-		case "toChinese_en":
-			div.innerHTML = selectTable('toChinese_en', 'text')
-				+ 'and ' + like_statement('translation')
-				+ training_check() + rand_check(false) + limit_check(40);
-			break;
-		case "syntax_cn":
-			div.innerHTML = selectTable('syntax_cn', 'text')
-				+ 'and ' + like_statement('infix')
-				+ training_check() + rand_check(false) + limit_check(40);
-			break;
-		case "segment_cn":
-			div.innerHTML = selectTable('segment_cn', 'text')
-				+ "and " + like_statement('seg')
-// + "and text.length " + generateComparisonRelation('relation')
-// + `<input id=char_length type='text' name=char_length style='width:2.5em;'
-// onkeyup= "input_positive_integer(this)"
-// onafterpaste="input_positive_integer(this)">`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "phatic_cn":
-			var labelSelector = generateSelector(['NEUTRAL', 'PERTAIN'], '', 'label', '', 'width:5em;');
-
-			div.innerHTML = selectTable('phatic', 'text')
-				+ `and label =${labelSelector}`
-				+ training_check() + rand_check(true) + limit_check(40);
+		case "lexicon":
+			var labelSelector = generateSelector(['hypernym','hyponym', 'synonym', 'antonym', 'related', 'unrelated'], '', 'label', '');
+			var switcher = generateEqualityRelation('label');
+			div.innerHTML = tableSelector('lexicon', lang, 'text')
+				+ 'and ' + like_statement('reword')
+				+ `and label ${switcher}${labelSelector}`
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "qatype_cn":
-			var labelSelector = generateSelector(['QUERY', 'REPLY'], '', 'label', '', 'width:5em;');
-
-			div.innerHTML = selectTable('qatype', 'text')
-				+ `and label =${labelSelector}`
-				+ training_check() + rand_check(true) + limit_check(40);
+		case "toChinese":
+			div.innerHTML = tableSelector('toChinese', lang, 'text')
+				+ 'and ' + like_statement('translation')
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "keyword_cn":
+		case "syntax":
+			div.innerHTML = tableSelector('syntax', lang, 'text')
+				+ 'and ' + like_statement('infix')
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
+			break;
+		case "segment":
+			div.innerHTML = tableSelector('segment', lang, 'text')
+				+ "and " + like_statement('seg')
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
+			break;
+		case "phatic":
+			var labelSelector = generateSelector(['NEUTRAL', 'PERTAIN'], '', 'label', '');
+
+			div.innerHTML = tableSelector('phatic', lang, 'text')
+				+ `and label = ${labelSelector}`
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
+			break;
+		case "qatype":
+			var labelSelector = generateSelector(['QUERY', 'REPLY'], '', 'label', '');
+
+			div.innerHTML = tableSelector('qatype', lang, 'text')
+				+ `and label = ${labelSelector}`
+				+ training_check() + rand_check(false) + limit_check(40, 1000);
+			break;
+		case "keyword":
 			var labelSelector = generateSelectorIndexed(["untechnical", 'technical'], '', 'label', '');			
 			
-			div.innerHTML = selectTable('keyword_cn', 'text')
+			div.innerHTML = tableSelector('keyword', lang, 'text')
 				+ "and label = " + labelSelector 
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "keyword_en":
-			var labelSelector = generateSelectorIndexed(["untechnical", 'technical'], '', 'label', '');			
-			
-			div.innerHTML = selectTable('keyword_en', 'text')
-				+ "and label = " + labelSelector
+		case "pretraining":			
+			div.innerHTML = tableSelector('pretraining', lang, 'title')
+				+ "and " + like_statement('text')				
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "pretraining_cn":			
-			div.innerHTML = selectTable('pretraining_cn', 'title')
-				+ "and " + like_statement('text')				
-				+ rand_check(false) + limit_check(40, 1000);
-			break;
-		case "pretraining_en":
-			div.innerHTML = selectTable('pretraining_en', 'title')
-				+ "and " + like_statement('text')				
-				+ rand_check(false) + limit_check(40, 1000);
-			break;
 		default:
-			div.innerHTML = selectTable('', 'text') + training_check() + rand_check(true) + limit_check(40);
+			var labelSelector = generateSelectorIndexed([], '', 'label', '');
+			div.innerHTML = tableSelector('', lang, 'text') + "and label = " + labelSelector + training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
 	}
 	mysql.text.focus();
@@ -827,9 +891,8 @@ function refresh_ner_fields(self, div) {
 	}, callback);
 }
 
-function add_paraphrase_item(div, sentence) {
-	var score = $("input[name=score_added]").val();
-	var array = sentence.split('/');
+function add_paraphrase_item(text, paraphrase, score) {
+	var array = text.split('/');
 	if (array.length == 2) {
 		var x = array[0];
 		var y = array[1];
@@ -843,232 +906,105 @@ function add_paraphrase_item(div, sentence) {
 	console.log('y = ' + y);
 	console.log('score = ' + score);
 
-	var html = "<div name=paraphrase_division>";
-	html += `<input type='text' name='text' value = '${x}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> / `;
-	html += `<input type='text' name='paraphrase' value = '${y}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> = `;
-	html += `<input type='text' name=score[] style='width:2.5em;' value = ${score} onkeyup='input_positive_integer(this)' onafterpaste='input_positive_integer(this)' onchange='changeColor(this, this.nextElementSibling)'>`;
-	html += "<input type=hidden name='training[]' value = '+1'>";
-	html += "</div><br>";
-	var columnSize = 6;
-
-	var sentence = [];
-	var context = [];
-	var service = [];
-	for (var i = 1; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			console.log(div.children[i].value);
-			sentence.push(div.children[i].value);
-			context.push(div.children[i + 1].value);
-			service.push(div.children[i + 2].value);
-		}
-		else
-			break;		
-	}
-
-	// console.log(sentence);
-
-	div.innerHTML = html + div.innerHTML;
-
-	for (var i = 1; i <= sentence.length; i++) {
-		div.children[i * columnSize + 1].value = sentence[i - 1];
-		div.children[i * columnSize + 2].value = context[i - 1];
-		div.children[i * columnSize + 3].value = service[i - 1];
-	}
+	var html = `<input type=text name=text value = '${x}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> / `;
+	html += `<input type=text name=paraphrase value = '${y}' onkeydown='changeInputlength(this)' onchange='changeColor(this, this.parentElement.children[3])' onblur='update_paraphrase_score(this.parentElement)'> = `;
+	html += `<input type=text name=score style='width:2.5em;' value = ${score} onkeyup='input_positive_integer(this)' onafterpaste='input_positive_integer(this)' onchange='changeColor(this, this.nextElementSibling)'>`;
+	return html;
 }
 
-function add_semantic_item(div, sentence) {
-	console.log('div = ');
-	console.log(div);
-	console.log('div.children = ');
-	console.log(div.children);
-	console.log('length = ' + div.children.length);
-
-	var context = $("select[name=context_added]").val();
-
-	var category = $('select[name=service_added]').val();
+function add_semantic_item(text, context, category) {
 	console.log('context = ' + context);
 
 	console.log('category = ' + category);
 
-	var html = `<br><input type='text' name='text[]' value = '${sentence}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling.nextElementSibling)'> `;
+	var html = `<input type=text name=text value = '${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
 
-	html += generateSelector(contextSelector, context, 'context[]', 'changeColor(this, this.nextElementSibling.nextElementSibling)');
+	html += generateSelector(contextSelector, context, 'context', 'changeColor(this, this.parentElement.lastElementChild)');
 	html += ' = ';
-	html += generateSelector(categorySelector, category, 'service[]', 'changeColor(this, this.nextElementSibling)');
+	html += generateSelector(categorySelector, category, 'service', 'changeColor(this, this.nextElementSibling)');
 
-	html += "<input type=hidden name='training[]' value = '+1'><br>";
-
-	var columnSize = 6;
-
-	var sentence = [];
-	var context = [];
-	var service = [];
-	for (var i = 1; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			console.log(div.children[i].value);
-			sentence.push(div.children[i].value);
-			context.push(div.children[i + 1].value);
-			service.push(div.children[i + 2].value);
-		}
-		else
-			break;		
-	}
-
-	// console.log(sentence);
-
-	div.innerHTML = html + div.innerHTML;
-
-	for (var i = 1; i <= sentence.length; i++) {
-		div.children[i * columnSize + 1].value = sentence[i - 1];
-		div.children[i * columnSize + 2].value = context[i - 1];
-		div.children[i * columnSize + 3].value = service[i - 1];
-	}
-
-}
-
-function add_qatype_item(div, sentence) {
-	console.log('div = ');
-	console.log(div);
-	console.log('div.children = ');
-	console.log(div.children);
-	console.log('length = ' + div.children.length);
-
-	var label = $("select[name=category_added]").val();
-	console.log('label = ' + label);
-
-	var html = `<br><input type='text' name='text[]' value = '${sentence}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling.nextElementSibling)'> `;
-
-	html += ' = ';
-	html += generateSelector(['QUERY', 'REPLY'], label, 'label[]', 'changeColor(this, this.nextElementSibling)');
-
-	html += "<input type=hidden name='training[]' value = '+1'><br>";
-
-	var columnSize = 4;
-
-	var sentence = [];
-	var label = [];
-	for (var i = 1; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			console.log(div.children[i].value);
-			sentence.push(div.children[i].value);
-			label.push(div.children[i + 1].value);
-		}
-		else
-			break;		
-	}
-
-	div.innerHTML = html + div.innerHTML;
-
-	for (var i = 1; i <= sentence.length; i++) {
-		div.children[i * columnSize + 1].value = sentence[i - 1];
-		div.children[i * columnSize + 2].value = label[i - 1];
-
-	}
-}
-
-function add_phatics_item(div, sentence) {
-	console.log('div = ');
-	console.log(div);
-	console.log('div.children = ');
-	console.log(div.children);
-	console.log('length = ' + div.children.length);
-
-	var label = $("select[name=category_added]").val();
-	console.log('label = ' + label);
-
-	var html = `<br><input type='text' name='text[]' value = '${sentence}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling.nextElementSibling)'> `;
-
-	html += ' = ';
-	html += generateSelector(['NEUTRAL', 'PERTAIN'], label, 'label[]', 'changeColor(this, this.nextElementSibling)');
-
-	html += "<input type=hidden name='training[]' value = '+1'><br>";
-
-	var columnSize = 4;
-
-	var sentence = [];
-	var label = [];
-	for (var i = 1; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			console.log(div.children[i].value);
-			sentence.push(div.children[i].value);
-			label.push(div.children[i + 1].value);
-		}
-		else
-			break;		
-	}
-
-	div.innerHTML = html + div.innerHTML;
-
-	for (var i = 1; i <= sentence.length; i++) {
-		div.children[i * columnSize + 1].value = sentence[i - 1];
-		div.children[i * columnSize + 2].value = label[i - 1];
-	}
-}
-
-function add_keyword_item_utility(label, text) {
-	if (text.startsWith('{') && text.endsWith('}')){
-		var json = JSON.parse(text); 
-		text = json.text;
-		label = json.label;
-		var training = json.training;
-	}
-	else{
-		var training = Math.floor(Math.random() * 2);		
-	}
-	
-	text = quote_html(text);
-	var html = `<input type='text' name='text' value = '${text}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling)'> = `;
-	
-	html += generateSelectorIndexed(["untechnical", "technical"], label, 'label', 'changeColor(this, this.nextElementSibling)');
-	
-	html += `<input type=hidden name='training' value = '+${training}'><br><br>`;
 	return html;
 }
 
-function add_keyword_item(div, text) {
-	console.log('div = ');
-	console.log(div);
-	console.log('div.children = ');
-	console.log(div.children);
-	console.log('length = ' + div.children.length);
-
-	var label = parseInt(mysql.label.value);
+function add_lexicon_item(text, reword, label) {	
+	console.log('text = ' + text);
+	console.log('reword = ' + reword);
 	console.log('label = ' + label);
-	if (label < 0)
-		label = '';
+	
+	var html = `<input type=text name=text value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> / `;
 
-	if (text instanceof Array){
-		var html = "";
-		for (let txt of text){
-			if (txt.length > 0) {
-				html += add_keyword_item_utility(label, txt);	
+	html += `<input type=text name=reword value='${reword}' onchange='changeColor(this, this.parentElement.lastElementChild)'> = `;
+	
+	html += generateSelector(["hypernym", "hyponym", "synonym", "antonym", "related", "unrelated"], label, 'label', 'changeColor(this, this.nextElementSibling)');
+	return html;
+}
+
+function add_item(handler, array){
+	function html_wrapper(html){
+		var training = Math.floor(Math.random() * 2);
+		return `<div>${html}<br><input type=hidden name=training value='+${training}'></div>`
+	}
+	
+	var html = "";
+	if (array instanceof Array){		
+		for (let text of array){
+			if (text.length > 0) {
+				html += html_wrapper(handler(text));	
 			}			
 		}		
 	}	
 	else{
-		var html = add_keyword_item_utility(label, text);
-	}
-
-	var columnSize = 5;
-
-	var sentence = [];
-	var label = [];
-	for (var i = 0; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			console.log(div.children[i].value);
-			sentence.push(div.children[i].value);
-			label.push(div.children[i + 1].value);
+		var element = mysql.lang;
+		var args = [];
+		while(true){
+			element = element.nextElementSibling;
+			if (element.type == 'file')
+				break;
+			args.push(element.value);
 		}
-		else
+
+		html = html_wrapper(handler.apply(null, args));
+	}
+	
+	for (let div of form.children) {
+		if (div.type == 'div' && div.children[0].type != 'text') 
 			break;
+		update_html(div);
 	}
 
-	div.innerHTML = html + div.innerHTML;
+	form.innerHTML = html + form.innerHTML;
+}
 
-	for (var i = 1; i <= sentence.length; i++) {
-		div.children[i * columnSize].value = sentence[i - 1];
-		div.children[i * columnSize + 1].value = label[i - 1];
+function add_qatype_item(text, label) {
+	console.log('label = ' + label);
+
+	var html = `<input type=text name=text value = '${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
+	html += ' = ';
+	html += generateSelector(['QUERY', 'REPLY'], label, 'label', 'changeColor(this, this.nextElementSibling)');
+	return html;
+}
+
+function add_phatics_item(text, label ) {
+	console.log('label = ' + label);
+
+	var html = `<input type=text name=text value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
+	html += ' = ';
+	html += generateSelector(['NEUTRAL', 'PERTAIN'], label, 'label', 'changeColor(this, this.nextElementSibling)');
+	return html;
+}
+
+function add_keyword_item(text, label) {
+	if (text.startsWith('{') && text.endsWith('}')){
+		var json = JSON.parse(text); 
+		text = json.text;
+		label = json.label;
 	}
+	
+	text = quote_html(text);
+	var html = `<input type='text' name='text' value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> = `;
+	
+	html += generateSelectorIndexed(["untechnical", "technical"], label, 'label', 'changeColor(this, this.nextElementSibling)');
+	return html;
 }
  
 function onchange_segment_text(self){
@@ -1081,7 +1017,7 @@ function onchange_segment_text(self){
 	});
 }
 
-function add_segment_item_utility(text, seg) {
+function add_segment_item(text, seg) {
 	console.log("text = " + text);
 	if (text.startsWith('{') && text.endsWith('}')){
 		var json = JSON.parse(text);
@@ -1090,13 +1026,8 @@ function add_segment_item_utility(text, seg) {
 		
 		text = json.text;
 		seg = json.seg;
-		var training = json.training;
 		console.log("text = " + text);
 		console.log("seg = " + seg);		
-	}
-	else{
-		var training = Math.floor(Math.random() * 2);
-		console.log("randomly set training");
 	}
 	
 	var style = "width:{0}em;".format(Math.max(strlen(text) / 2 + 1, 32));
@@ -1105,65 +1036,19 @@ function add_segment_item_utility(text, seg) {
 	
 	style = "width:{0}em;".format(Math.max(strlen(seg) / 2 + 1, 32));
 	html += `<input type=text name=seg style='${style}' value='${seg}' class=monospace onchange='onchange_segment(this)' onkeydown='onkeydown_segment(this, event)'>`;
-	
-	html += `<input type=hidden name='training' value='+${training}'><br><br>`;
 	return html;
-}
-
-function add_segment_item(div, text){
-	console.log('div = ');
-	console.log(div);
-	console.log('div.children = ');
-	console.log(div.children);
-	console.log('length = ' + div.children.length);
-
-	var seg = mysql.seg.value;
-	console.log('seg = ' + seg);
-	
-	if (text instanceof Array){
-		var html = "";
-		for (let txt of text){
-			if (txt.length > 0) {
-				html += add_segment_item_utility(txt, seg);	
-			}			
-		}		
-	}	
-	else{
-		var html = add_segment_item_utility(text, seg);
-	}
-
-	var columnSize = 6;
-
-	var sentence = [];
-	var output = [];
-	for (var i = 0; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			console.log(div.children[i].value);
-			sentence.push(div.children[i].value);
-			output.push(div.children[i + 2].value);
-		}
-		else
-			break;
-	}
-
-	div.innerHTML = html + div.innerHTML;
-
-	for (var i = 1; i <= sentence.length; ++i) {
-		div.children[i * columnSize].value = sentence[i - 1];
-		div.children[i * columnSize + 2].value = output[i - 1];
-	}	
 }
 
 function onchange_syntax_text(self){
 	var div = self.parentElement;
 	
-	var tree = self.nextElementSibling;
+	var tree = self.nextElementSibling.nextElementSibling;
 	var infix_simplified = tree.nextElementSibling;
 	var seg = infix_simplified.nextElementSibling.nextElementSibling;
 	var pos = seg.nextElementSibling.nextElementSibling;
 	var dep = pos.nextElementSibling.nextElementSibling;
 	
-	var training = div.lastElement;
+	var training = div.lastElementChild;
 	
 	changeColor(self, training);
 	request_post('algorithm/syntax', self.value).done(dict =>{
@@ -1178,7 +1063,7 @@ function onchange_syntax_text(self){
 	});
 }
 
-function add_syntax_item_utility(text) {
+function add_syntax_item(text) {
 	console.log("text = " + text);
 	if (text.startsWith('{') && text.endsWith('}')){
 		var json = JSON.parse(text);
@@ -1186,14 +1071,18 @@ function add_syntax_item_utility(text) {
 		console.log(json);
 		
 		text = json.text;
-		var infix = json.infix;
-		var training = json.training;
+		var infix = json.infix;		
 		console.log("text = " + text);
-		console.log("infix = " + infix);		
+		console.log("infix = " + infix);
+		
+		var arr = parse_for_original_segment(infix);
+		var seg = arr[0].join(' ');
+		var pos = arr[1].join(' ');
+		var dep = arr[2].join(' ');
+		var infix_simplified = infix;
+		var tree = infix;
 	}
 	else{
-		var training = Math.floor(Math.random() * 2);
-		console.log("randomly set training");
 		var seg = '';
 		var pos = '';
 		var dep = '';
@@ -1205,7 +1094,7 @@ function add_syntax_item_utility(text) {
 	var style = "width:{0}em;".format(Math.max(strlen(text) / 2 + 1, 50));
 	text = quote_html(text);
 	
-	var html = `<div><input type=text name=text style='${style}' value='${text}' placeholder='input a natural language sentence and press tab key to view its hierarchical dependency structure' class=monospace onchange='onchange_syntax_text(this)' onkeydown='changeInputlength(this, true, 32)>`;
+	var html = `<input type=text name=text style='${style}' value='${text}' placeholder='input a natural language sentence and press tab key to view its hierarchical dependency structure' class=monospace onchange='onchange_syntax_text(this)' onkeydown='changeInputlength(this, true, 32)'>`;
 	infix = quote_html(infix);
 	html += `<input type=hidden name=infix value='${infix}'>`;
 	
@@ -1225,90 +1114,25 @@ function add_syntax_item_utility(text) {
 
 	style = "width:{0}em;".format(Math.max(strlen(dep) / 2 + 1, 32));
 	html += `<input type=text name=dep style='${style}' class=monospace value='${dep}' onchange='modify_structure(this)'><br>`;
-
-	html += `<br><input type=hidden name=training value='+${training}'></div>`;
 	return html;
 }
 
-function add_syntax_item(form, text){
-	if (text instanceof Array){
-		var html = "";
-		for (let txt of text){
-			if (txt.length > 0) {
-				html += add_syntax_item_utility(txt, infix);	
-			}			
-		}		
-	}	
-	else{
-		var infix = '';
-		var html = add_syntax_item_utility(text, infix);
-	}
-	
-	for (let div of form.children) {
-		if (div.children[0].type != 'text') 
-			break;
-		update_html(div);
-	}
-
-	form.innerHTML = html + form.innerHTML;
-}
-
-function add_repertoire_item(div, text) {
+function add_repertoire_item(text, service, slot, code) {
 	console.log('text = ' + text);
-	var service = $("select[name=service_added]").val();
-
 	console.log('service = ' + service);
-
-	// console.log('div = ');
-	// console.log(div);
-	// console.log('div.children = ');
-	// console.log(div.children);
-	console.log('length = ' + div.children.length);
-
-	var slot = $('select[name=slot_added]').val();
 
 	console.log('slot = ' + slot);
 
-	var code = $('select[name=code_added]').val();
-
 	console.log('code = ' + code);
 
-	var html = `<br><input type='text' name='text[]' value='${text}' onchange='changeColor(this, this.nextElementSibling.nextElementSibling.nextElementSibling.nextElementSibling)'> `;
+	var html = `<input type='text' name='text' value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
 
-	html += generateSelector(serviceSelector, service, 'service[]', 'onchange_tbl_repertoire_service(this)', '', 'onfocus_tbl_repertoire_service(this)');
+	html += generateSelector(serviceSelector, service, 'service', 'onchange_tbl_repertoire_service(this)', '', 'onfocus_tbl_repertoire_service(this)');
 	html += ' = ';
-	html += generateSelector(slotSelector[service], slot, 'slot[]', 'changeColor(this, this.nextElementSibling.nextElementSibling); update_codeSelector(this);') + '.';
+	html += generateSelector(slotSelector[service], slot, 'slot', 'changeColor(this, this.parentElement.lastElementChild); update_codeSelector(this);') + '.';
 
-	html += generateSelector(subslotSelector[slot], code, 'code[]', 'changeColor(this, this.nextElementSibling)');
-
-	html += "<input type=hidden name='training[]' value='+'><br>";
-
-	var columnSize = 7;
-
-	var text = [];
-	var service = [];
-	var slot = [];
-	var code = [];
-	for (var i = 1; i < div.children.length; i += columnSize) {
-		if (div.children[i].type == 'text') {
-			text.push(div.children[i].value);
-			service.push(div.children[i + 1].value);
-			slot.push(div.children[i + 2].value);
-			code.push(div.children[i + 3].value);
-		}
-		else
-			break;
-	}
-
-	div.innerHTML = html + div.innerHTML;
-
-	for (var i = 1; i <= text.length; i++) {
-		div.children[i * columnSize + 1].value = text[i - 1];
-		div.children[i * columnSize + 2].value = service[i - 1];
-		div.children[i * columnSize + 3].value = slot[i - 1];
-		div.children[i * columnSize + 4].value = code[i - 1];
-	}
-
+	html += generateSelector(subslotSelector[slot], code, 'code', 'changeColor(this, this.nextElementSibling)');
+	return html;
 }
 
 function addListener() {
@@ -1343,7 +1167,7 @@ function addListener() {
 	});
 }
 
-function handleFiles(self, add) {
+function handleFiles(self, handler) {
 	var form = self.parentElement.nextElementSibling;
 
 	console.log('function handleFiles() is called!');
@@ -1360,7 +1184,7 @@ function handleFiles(self, add) {
 		var reader = new FileReader();
 
 		reader.onload = function () {
-			add(form, this.result.split(/[\r\n]+/));
+			add_item(handler, this.result.split(/[\r\n]+/));
 		};
 
 		reader.readAsText(file);
@@ -1980,6 +1804,7 @@ function counterDict(arr) {
 function parse_for_original_segment(infix) {
 	var word = [];
 	var pos = [];
+	var dep = [];
 	// var infix = infix.replace(/\s+/g, '');
 
 	var arr = matchAll(infix, /\(*([^()]+)\)*/g);
@@ -1988,6 +1813,7 @@ function parse_for_original_segment(infix) {
 		arr[i] = arr[i][1].split('/');
 		word.push(arr[i][0]);
 		pos.push(arr[i][1]);
+		dep.push(arr[i][2]);
 		if (arr[i].length == 4) {
 			arr[i] = parseInt(arr[i][3]);
 		}
@@ -1996,16 +1822,19 @@ function parse_for_original_segment(infix) {
 	if (Number.isInteger(arr[0])) {
 		var _word = new Array(word.length);
 		var _pos = new Array(pos.length);
+		var _dep = new Array(dep.length);
 		for (var i = 0; i < arr.length; i++) {
 			var j = arr[i];
 			_word[j] = word[i];
 			_pos[j] = pos[i];
+			_dep[j] = dep[i];
 		}
 		word = _word;
 		pos = _pos;
+		dep = _dep;
 	}
 
-	return [word, pos]
+	return [word, pos, dep]
 }
 
 function modify_infix(infix, infixExpression) {
@@ -2067,6 +1896,29 @@ function onsubmit_segment(self){
 	}
 	
 	request_post('algorithm/mysql/batch', JSON.stringify(list), 'text');
+}
+
+function onkeyup_input(event){
+	if (event.keyCode === 13) {		
+		console.log("event.keyCode = " + event.keyCode);		
+		console.log("document.forms.length = " + document.forms.length);
+		var lang = mysql.lang.value;
+		var task = mysql.table.value;
+		
+		if (document.forms.length == 1){
+			var form = document.createElement('form');
+			form.name = 'form';
+			form.setAttribute('method', 'post');
+			
+			var submit = document.createElement('input');
+			submit.type = 'submit';			
+			submit.name = `${task}_${lang}_submit`;
+			submit.value = 'submit';
+			form.appendChild(submit);
+			document.body.appendChild(form);			
+		}
+		add_item(eval(`add_${task}_item`));
+	}
 }
 
 function onkeydown_segment(self, event){
@@ -2490,9 +2342,10 @@ function convertToOriginal(arr) {
 }
 
 function convertToSegmentation(str) {
-	str.replace(/([,.:;!?()\[\]{}'"=<>，。：；！？（）「」『』【】～‘’′”“《》、…．·])/g, " $1 ");
+	str = str.replace(/([,.:;!?()\[\]{}'"=<>，。：；！？（）「」『』【】～‘’′”“《》、…．·])/g, " $1 ");
 
-	str.replace(/(?<=[\d]+)( +([\.．：:]) +)(?=[\d]+)/g, "$2");
+// str = str.replace(/(?<=[\d]+)( +([\.．：:]) +)(?=[\d]+)/g, "$2");
+	str = str.replace(/([\d]+)( +([\.．：:]) +)(?=[\d]+)/g, "$1$2");
 
 	var length = str.length;
 	while (true) {

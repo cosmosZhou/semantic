@@ -19,7 +19,7 @@
 	String relation_text = request.getParameter("relation_text");
 	String rand = request.getParameter("rand");
 
-	String lines[] = {"mysql.cmd.value = '%s'", "if (mysql.cmd.value != 'select*') onchangeTable(mysql.cmd)",
+	String lines[] = {"mysql.cmd.value = '%s'", "if (mysql.cmd.value != 'select') onchange_cmd(mysql.cmd)",
 			"mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
 			"changeInputlength(mysql.relation_text, true)", "mysql.label.value = %d",
 			"mysql.training.value = %d", "mysql.rand.checked = %s", "mysql.limit.value = %d"};
@@ -27,7 +27,7 @@
 	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text, label, training,
 			rand == null ? "false" : "true", limit));
 
-	String lang = table.split("_")[1];
+	String lang = request.getParameter("lang");
 
 	System.out.println("limit = " + limit);
 
@@ -59,18 +59,25 @@
 	if (!discrepant)
 		condition += "limit " + limit;
 
-	if (cmd.equals("update")) {
-		sql = String.format("%s %s set label = %s %s", cmd, table, label, condition);
-	} else {
-		sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+	switch (cmd) {
+		case "update" :
+			sql = String.format("%s tbl_%s_%s set label = %s %s", cmd, table, label, lang, condition);
+			break;
+		case "select" :
+			sql = String.format("%s * from tbl_%s_%s %s", cmd, table, lang, condition);
+			break;
+		case "delete" :
+		default :
+			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
+			break;
 	}
 
 	System.out.println(sql);
-	if (!cmd.equals("select*")) {
+	if (!cmd.equals("select")) {
 		if (!discrepant)
 			out.print(String.format("<p class=%s ondblclick='mysql_execute(this)'>%s</p>", cmd,
 					Utility.str_html(sql)));
-		sql = String.format("select* from tbl_%s %s", table, condition);
+		sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 	}
 
 	List<Map<String, Object>> list;
@@ -112,14 +119,6 @@
 	}
 %>
 
-<div>
-	insert into tbl_<%=table%>(text, label) values( <input type=button
-		onClick='add_keyword_item(this.parentElement.nextElementSibling, "")'
-		value=text> / <input id=keyword_file name=keyword_file
-		type=file onchange='handleFiles(this, add_keyword_item)' value='text'
-		accept='.txt' style='width: 5em;' title=''> / <a
-		href='solr.jsp?lang=<%=lang%>'>solr</a>, ...)<br> <br>
-</div>
 <form name=keyword method=post>
 	<%
 		boolean changed = cmd.equals("update");
@@ -134,7 +133,7 @@
 			out.print(Jsp.createKeywordEditor(text, label, training, changed));
 		}
 	%>
-	<input type=submit name='<%=table%>_submit' value=submit>
+	<input type=submit name='<%=table%>_<%=lang%>_submit' value=submit>
 </form>
 <script>
 	if (mysql.training.value != 2)

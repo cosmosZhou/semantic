@@ -10,17 +10,17 @@
 <%@page import="com.patsnap.core.analysis.manager.CarrotManager"%>
 <%@page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 <%
-	String texts[] = request.getParameterValues("text");	
+	String texts[] = request.getParameterValues("text");
 	if (texts.length > 1) {
 		String langs[] = request.getParameterValues("lang");
 		String rows[] = request.getParameterValues("rows");
-		
+
 		System.out.println(String.join(", ", texts));
 		out.print(Jsp.javaScript("for (var i = 1; i < %d; ++i) add_solr_item();", texts.length));
-		
+
 		for (int i = 0; i < texts.length; ++i) {
 			out.print(Jsp.javaScript("mysql.children[1 + %d].children[0].value = '%s';", i, langs[i]));
-			out.print(Jsp.javaScript("mysql.children[1 + %d].children[1].value = '%s';", i, texts[i]));			
+			out.print(Jsp.javaScript("mysql.children[1 + %d].children[1].value = '%s';", i, texts[i]));
 			out.print(Jsp.javaScript("mysql.children[1 + %d].children[2].value = '%s';", i, rows[i]));
 		}
 		out.print(Jsp.javaScript("concurrency_test()"));
@@ -30,7 +30,7 @@
 	String text = request.getParameter("text");
 	if (text != null && !text.isEmpty()) {
 		String lang = request.getParameter("lang");
-		String table = "tbl_keyword_" + lang;
+		String table = "keyword_" + lang;
 
 		int rows = Integer.valueOf(request.getParameter("rows"));
 
@@ -43,8 +43,10 @@
 		out.print("time cost in solr (in seconds) = " + result.solr_duration + "<br>");
 		out.print("time cost in clustering (in seconds) = " + result.clustering_duration + "<br>");
 		out.print("time cost in postprocessing (in seconds) = " + result.postprocessing_duration + "<br>");
+		out.print(
+				"time cost in hyponym_detection (in seconds) = " + result.hyponym_detection_duration + "<br>");
 		out.print("number of patents from solr = " + result.numFromSolr + "<br>");
-		out.print("number of key phrases extracted = " + result.list.size() + "<br>");
+		out.print("number of key phrases extracted = " + result.list.length + "<br>");
 %>
 
 <br>
@@ -53,7 +55,7 @@
 		Random rnd = new Random();
 			for (String _text : result.list) {
 				List<Map<String, Object>> sqlResult = MySQL.instance
-						.select_from("select label from tbl_%s where text = '%s'", table, _text);
+						.select_from("select label from tbl_%s_%s where text = '%s'", table, lang, _text);
 
 				boolean changed;
 				int label = -1;
@@ -77,13 +79,12 @@
 				switch (lang) {
 					case "cn" :
 						href = String.format(
-								"index.jsp?table=tbl_segment_cn&javaScript=add_segment_from_solr(\"%s\", %d)",
-								_text, result.cache_index);
+								"index.jsp?table=segment_cn&javaScript=add_segment_from_solr(\"%s\", %d)", _text,
+								result.cache_index);
 						break;
 					case "en" :
-						href = String.format(
-								"index.jsp?javaScript=add_segment_en_from_solr(\"%s\", %d)",
-								_text, result.cache_index);
+						href = String.format("index.jsp?javaScript=add_segment_en_from_solr(\"%s\", %d)", _text,
+								result.cache_index);
 						break;
 					default :
 						href = "javaScript:void(0);";

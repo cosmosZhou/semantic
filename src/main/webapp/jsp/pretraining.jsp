@@ -36,14 +36,14 @@
 
 	String lines[] = { "mysql.cmd.value = '%s'", "mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
 			title_script, "mysql.rand.checked = %s", "mysql.limit.value = %s",
-			"if (mysql.cmd.value != 'select*') onchangeTable(mysql.cmd)",
+			"if (mysql.cmd.value != 'select') onchange_cmd(mysql.cmd)",
 			"if (mysql.cmd.value == 'update') mysql.replacement.value = '%s'" };
 
 	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text,
 			Utility.quote(title), rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit),
 			replacement != null ? Utility.quote(replacement) : null));
 
-	String lang = table.split("_")[1];
+	String lang = request.getParameter("lang");
 
 	System.out.println("limit = " + limit);
 
@@ -89,36 +89,26 @@
 
 			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
 					Utility.str_html(sql)));
-			sql = String.format("select* from tbl_%s %s", table, condition);
+			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 		} else {
-			cmd = "select*";
-			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+			cmd = "select";
+			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 		}
 
 		break;
 	case "delete":
-		sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+		sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 		out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
 				Utility.str_html(sql)));
-		sql = String.format("select* from tbl_%s %s", table, condition);
+		sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 		break;
 	default:
-		sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+		sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 	}
 
 	List<Map<String, Object>> list = MySQL.instance.select(sql);
 
 	out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>", Utility.str_html(sql)));
-%>
-
-<div>
-	insert into tbl_<%=table%>(text, title) values( <input type=button
-		onClick='add_pretraining_item(this.parentElement.nextElementSibling, "")'
-		value=text> / <input id=syntax_file name=syntax_file type=file
-		onchange='handleFiles(this, add_pretraining_item)' value='text'
-		accept='.txt' style='width: 5em;' title=''>, ...)<br> <br>
-</div>
-<%
 	if (!list.isEmpty()) {
 		out.print("count(*) = " + list.size());
 %>
@@ -151,7 +141,7 @@
 
 			}
 	%>
-	<input type=submit name='<%=table%>_submit' value=submit>
+	<input type=submit name='<%=table%>_<%=lang%>_submit' value=submit>
 </form>
 
 <%

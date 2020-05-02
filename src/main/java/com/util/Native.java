@@ -6,17 +6,22 @@ import org.ahocorasick.trie.Trie;
 
 //javah -jni com.util.Native
 public class Native {
+	public native static void reinitializeSyntaxParser();
 
 	public native static void reinitializeCWSTagger();
-	
+
 	public native static void reinitializePOSTagger();
 
 	public native static void reinitializeKeywordCN();
 
 	public native static void reinitializeKeywordEN();
 
+	public native static int[] hyponymStructureCN(String[] keywords);
+
+	public native static int[] depCN(String[] seg, String[] pos, String[] dep);
+
 	public native static String[] posCN(String[] long_array);
-	
+
 	public native static String[] segmentCN(String text);
 
 	public native static String[][] segmentCNs(String[] long_array);

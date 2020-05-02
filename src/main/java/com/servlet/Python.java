@@ -16,7 +16,9 @@ public class Python {
 		parameters.put("python", script);
 		if (text)
 			parameters.put("text", "True");
-		return HttpClient.HttpClientPost("http://localhost:5000/eval", parameters);
+
+		String url = String.format("http://localhost:%s/eval", PropertyConfig.get("model", "tcp"));
+		return HttpClient.HttpClientPost(url, parameters);
 	}
 
 	public static String eval(String script) {

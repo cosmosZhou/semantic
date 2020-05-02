@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
@@ -36,6 +35,7 @@ public class Jsp {
 		while (paramNames.hasMoreElements()) {
 			String paramName = (String) paramNames.nextElement();
 
+			System.out.println("paramName = " + paramName);
 			String[] paramValues = request.getParameterValues(paramName);
 			if (paramValues.length > 0) {
 				String paramValue = paramValues[0];
@@ -114,8 +114,6 @@ public class Jsp {
 		return String.join("", lines);
 	}
 
-	static String[] categorySelector = { "untechnical", "technical" };
-
 	public static String createPretrainingEditor(int id, String title, String text, String mark, boolean changed) {
 		int strlen_title = Math.max(8, Utility.strlen(title) / 2 + 1);
 		String lines[] = { String.format("<input type=hidden name=id value=%d>", id),
@@ -139,6 +137,16 @@ public class Jsp {
 						"<input type=text name=score style='width:2.5em;' value=%d onkeyup='input_positive_integer(this)' onafterpaste='input_positive_integer(this)' onchange='changeColor(this, this.nextElementSibling)'>",
 						score),
 				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div><br>" };
+
+		return String.join("", lines);
+	}
+
+	public static String createLexiconEditor(String x, String y, String label, boolean training, boolean changed) {
+		String lines[] = {
+				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
+				String.format("<input type=hidden name=reword value='%s'>", Utility.quote_html(y)),
+				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)), Jsp.createLexiconSelector(label),
+				String.format("<br><input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div>" };
 
 		return String.join("", lines);
 	}
@@ -195,11 +203,19 @@ public class Jsp {
 	}
 
 	public static String createKeywordSelector(String selected) {
+		String[] categorySelector = { "untechnical", "technical" };
+		return generateSelectorIndexed(categorySelector, selected, "label",
+				"changeColor(this, this.nextElementSibling)");
+	}
+
+	public static String createLexiconSelector(String selected) {
+		String[] categorySelector = { "hypernym", "hyponym", "synonym", "antonym", "related", "unrelated" };
 		return generateSelectorIndexed(categorySelector, selected, "label",
 				"changeColor(this, this.nextElementSibling)");
 	}
 
 	public static String create_keyword_selector(int selected) {
+		String[] categorySelector = { "untechnical", "technical" };
 		return generateSelectorIndexed(categorySelector, selected, "label",
 				"changeColor(this, this.nextElementSibling)");
 	}
@@ -252,7 +268,7 @@ public class Jsp {
 
 		boolean found = false;
 
-		int index = 0;
+		int index = 1;
 		for (String field : selector) {
 			String selected;
 			if (field.equals(fieldName)) {

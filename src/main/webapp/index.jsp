@@ -8,9 +8,10 @@
 %>
 
 <script>
-	var table = '${param.table}'.toLowerCase();
+	var table = '${param.table}';
 	if (table) {
-		changeTable(table);
+		var lang = '${param.lang}';
+		onchange_table(table, lang);
 	}
 
 	var javaScript = '${param.javaScript}';
@@ -30,7 +31,7 @@
 	System.out.println("task = " + task);
 
 	if (task.equals("submit_query")) {
-		task = request.getParameter("table").split("_")[0];
+		task = request.getParameter("table");
 		System.out.println("task = " + task);
 	} else {
 		Matcher m = Pattern.compile("(.*)submit").matcher(task);

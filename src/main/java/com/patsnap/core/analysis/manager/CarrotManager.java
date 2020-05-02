@@ -321,25 +321,17 @@ public class CarrotManager {
 	public static CarrotManager instance = new CarrotManager();
 
 	public static class ClusteringResult {
-		ClusteringResult(List<String> list, HashMap<String, List<String>> map, int numFromSolr, double solr_duration,
-				double clustering_duration, double postprocessing_duration) {
+		ClusteringResult(String[] list, HashMap<String, List<String>> map, Map<String, ArrayList<String>> cluster,
+				int numFromSolr, double solr_duration, double clustering_duration, double postprocessing_duration,
+				double hyponym_detection_duration) {
 			this.list = list;
-			list.sort(new Comparator<String>() {
-				@Override
-				public int compare(String o1, String o2) {
-					return Integer.compare(map.get(o2).size(), map.get(o1).size());
-				}
-			});
-
-			if (list.size() > 50) {
-				this.list = list.subList(0, 50);
-			}
 
 			this.map = map;
 			this.numFromSolr = numFromSolr;
 			this.solr_duration = solr_duration;
 			this.clustering_duration = clustering_duration;
 			this.postprocessing_duration = postprocessing_duration;
+			this.hyponym_detection_duration = hyponym_detection_duration;
 			for (int i = 0; i < cache.length; i++) {
 				if (cache[i] == null) {
 					cache[i] = map;
@@ -349,14 +341,16 @@ public class CarrotManager {
 			}
 		}
 
-		public List<String> list;
+		public String[] list;
+		public Map<String, ArrayList<String>> cluster = new HashMap<String, ArrayList<String>>();
 
-		@JsonIgnore // 可以直接放在field上面表示要忽略的filed
+		@JsonIgnore // field to ignore
 		public HashMap<String, List<String>> map;
 
 		public double solr_duration;
 		public double clustering_duration;
 		public double postprocessing_duration;
+		public double hyponym_detection_duration;
 		public int numFromSolr;
 		public int cache_index;
 
@@ -375,8 +369,9 @@ public class CarrotManager {
 
 		List<String> list = new ArrayList<String>();
 		HashMap<String, List<String>> map = new HashMap<String, List<String>>();
+		Map<String, ArrayList<String>> cluster = new HashMap<String, ArrayList<String>>();
 		if (patentDataMap.isEmpty())
-			return new ClusteringResult(list, map, numFromSolr, solr_duration, 0, 0);
+			return new ClusteringResult(new String[0], map, cluster, numFromSolr, solr_duration, 0, 0, 0);
 
 		language = language.toLowerCase();
 		if (language.equals("cn"))
@@ -385,10 +380,10 @@ public class CarrotManager {
 		LanguageCode languageCode = LanguageCode.forISOCode(language);
 		List<CarrotClusterBo> carrotResult = instance.clusterPatentsToWordClouds(languageCode, patentDataMap);
 
-		for (CarrotClusterBo cluster : carrotResult) {
-			for (CarrotPhraseBo phrase : cluster.phrases) {
+		for (CarrotClusterBo c : carrotResult) {
+			for (CarrotPhraseBo phrase : c.phrases) {
 				list.add(phrase.key);
-				map.put(phrase.key, cluster.documentIds);
+				map.put(phrase.key, c.documentIds);
 			}
 		}
 //		log.info("finishing analyzing keyword: " + text);
@@ -418,9 +413,38 @@ public class CarrotManager {
 		default:
 			break;
 		}
+
 		double postprocessing_duration = timer.report("Native.keyword(jstringArray)");
-		return new ClusteringResult(listPhrases, map, numFromSolr, solr_duration, clustering_duration,
-				postprocessing_duration);
+
+		listPhrases.sort(new Comparator<String>() {
+			@Override
+			public int compare(String o1, String o2) {
+				return Integer.compare(map.get(o2).size(), map.get(o1).size());
+			}
+		});
+
+		if (listPhrases.size() > 50) {
+			listPhrases = listPhrases.subList(0, 50);
+		}
+
+		String array[] = Utility.toArray(listPhrases);
+
+		int[] heads = Native.hyponymStructureCN(array);
+		for (int child = 0; child < heads.length; ++child) {
+			int parent = heads[child];
+			if (parent < 0) {
+				continue;
+			}
+			String incenter = array[parent];
+			String childPhrase = array[child];
+			if (!cluster.containsKey(incenter))
+				cluster.put(incenter, new ArrayList<String>());
+			cluster.get(incenter).add(childPhrase);
+		}
+
+		double hyponym_detection_duration = timer.report("hyponym_detection_duration");
+		return new ClusteringResult(array, map, cluster, numFromSolr, solr_duration, clustering_duration,
+				postprocessing_duration, hyponym_detection_duration);
 	}
 
 	public List<String> getClusteringResult(LanguageCode language, List<Map<String, Object>> patentDataMap)
@@ -460,7 +484,7 @@ public class CarrotManager {
 			} while (analyzed.contains(keyword));
 
 			System.out.println("analyzing " + keyword);
-			List<String> list = instance.getClusteringResult(lang, keyword, 1000).list;
+			String list[] = instance.getClusteringResult(lang, keyword, 1000).list;
 
 			for (String e : list) {
 				int label = Native.keywordCN(e);

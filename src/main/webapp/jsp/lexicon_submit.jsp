@@ -3,13 +3,18 @@
 <%@ page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 
 <%
-	out.print(Jsp.join(MySQL.instance.insert("tbl_segment_cn", request.getParameterValues("text"),
-			request.getParameterValues("seg"), request.getParameterValues("training"))));
+	String lang = (String) request.getAttribute("lang");
+	out.print(Jsp.join(MySQL.instance.insert("tbl_lexicon_" + lang, request.getParameterValues("text"),
+			request.getParameterValues("reword"), request.getParameterValues("label"),
+			request.getParameterValues("training"))));
+
+	out.print(Jsp.javaScript("onchange_table('lexicon', '%s')", lang));
 %>
 <br>
 model configuration:
 <form name=form method=post>
-	<br>epochs = <input type=text name=epochs value=5
+	<input type=hidden name=lang value=<%=lang%>> <br>epochs =
+	<input type=text name=epochs value=5
 		onkeyup='input_positive_integer(this)'
 		onafterpaste='input_positive_integer(this)'> <br>batch_size
 	= <input type=text name=batch_size value=256
@@ -24,9 +29,5 @@ model configuration:
 	= <input type=text name=pretraining_weight value=0.5
 		onkeyup='input_nonnegative_number(this)'
 		onafterpaste='input_nonnegative_number'> <br> <input
-		type=submit name=tbl_segment_cn_training value=training>
+		type=submit name=tbl_paraphrase_training value=training>
 </form>
-
-<script>
-	onchange_table('segment', 'cn');
-</script>

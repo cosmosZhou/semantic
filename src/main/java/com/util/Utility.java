@@ -31,7 +31,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Matcher;
@@ -44,17 +46,33 @@ import org.jblas.DoubleMatrix;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.util.Utility.RegexIterator;
-import com.util.Utility.Replacer;
 
 public class Utility {
 	public static void main(String[] args) throws Exception {
-		short[] arr = new short[16];
-		System.out.println(arr);
+		PriorityDict<String> pq = new PriorityDict<String>();
+		pq.push("this");
+		pq.push("that");
 
-		char[][] arrs = new char[16][];
-		System.out.println(arrs);
-//		testCharArray();
+		pq.push("abc");
+		pq.push("def");
+		pq.push("ghi");
+		pq.push("jkl");
+		pq.push("mno");
+		pq.push("pqr");
+		pq.push("stu");
+		pq.push("vwx");
+		pq.push("yz");
+
+		System.out.println(pq);
+
+		while (!pq.isEmpty()) {
+			String element = pq.map.entrySet().iterator().next().getKey();
+			System.out.println("erasing " + element);
+			pq.erase(element);
+
+			pq.push(String.valueOf(new Random().nextInt()));
+		}
+
 	}
 
 	static public String workingDirectory = "../";
@@ -929,11 +947,11 @@ public class Utility {
 
 	static public <T> int indexOf(T[] elementData, T o, int index) {
 		if (o == null) {
-			for (int i = index; i < elementData.length; i++)
+			for (int i = index; i < elementData.length; ++i)
 				if (elementData[i] == null)
 					return i;
 		} else {
-			for (int i = index; i < elementData.length; i++)
+			for (int i = index; i < elementData.length; ++i)
 				if (o.equals(elementData[i]))
 					return i;
 		}
@@ -2017,4 +2035,421 @@ public class Utility {
 		return tmp;
 	}
 
+	public static class PriorityQueue<_Ty> extends ArrayList<_Ty> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
+		public Comparator<_Ty> pred;
+
+		public PriorityQueue(Comparator<_Ty> pred) {
+			this.pred = pred;
+		}
+
+		// default to a maximum heap;
+		public PriorityQueue() {
+			this(true);
+		}
+
+		public PriorityQueue(boolean bMaximumHeap) {
+			if (bMaximumHeap)
+				this.pred = new Comparator<_Ty>() {
+					@SuppressWarnings("unchecked")
+					@Override
+					public int compare(_Ty o1, _Ty o2) {
+						return ((Comparable<? super _Ty>) o1).compareTo(o2);
+					}
+				};
+			else
+				this.pred = new Comparator<_Ty>() {
+					@SuppressWarnings("unchecked")
+					@Override
+					public int compare(_Ty o1, _Ty o2) {
+						return ((Comparable<? super _Ty>) o2).compareTo(o1);
+					}
+				};
+		}
+
+		public PriorityQueue(ArrayList<_Ty> arr) {
+			this();
+			make_heap(arr);
+		}
+
+		public PriorityQueue(_Ty[] arr) {
+			this();
+			make_heap(arr, arr.length);
+		}
+
+		public void make_heap(_Ty ptr[], int size) {
+			for (int i = 0; i < size; ++i)
+				add(ptr[i]);
+			make_heap();
+		}
+
+		public void make_heap(ArrayList<_Ty> arr) {
+			for (int i = 0; i < arr.size(); ++i)
+				add(arr.get(i));
+			make_heap();
+		}
+
+		// make nontrivial [_First, _Last) into a heap, using pred
+		public void make_heap() {
+			int _Hole = size() >> 1;
+			while (0 < _Hole--)
+				// reheap top half, bottom to top
+				adjust_heap(_Hole);
+		}
+
+		private static int _Idx; // used to look for the right kinder / parent.
+
+		// look for the right kinder _Idx * 2 + 2; remember the left kinder is
+		// _Idx * 2 + 1, the right kinder might have exceed the array bound and
+		// we might have failed to find the left kinder.
+		private boolean shl() {
+			++_Idx;
+			_Idx <<= 1;
+			return _Idx < size();
+		}
+
+		int adjust_heap(int _Hole) { // percolate _Hole to _Bottom, then push
+										// _Val, using pred
+			_Ty _Val = get(_Hole);
+			int _Top = _Hole;
+			_Idx = _Hole;
+			while (shl()) { // move _Hole down to larger kinder
+				if (pred.compare(get(_Idx), get(_Idx - 1)) < 0)
+					--_Idx;
+				set(_Hole, get(_Idx));
+				_Hole = _Idx;
+			}
+
+			if (_Idx == size()) { // only kinder at bottom, move _Hole down to
+									// it
+				--_Idx;
+				set(_Hole, get(_Idx));
+				_Hole = _Idx;
+			}
+			return push_heap(_Top, _Hole, _Val);
+		}
+
+		private boolean shr(int _Top) {// look for the right kinder (_Idx - 1) /
+										// 2; remember the left kinder is _Idx *
+										// 2 + 1, the right kinder might have
+										// exceed the array bound and we might
+										// have failed to find the left kinder.
+			if (_Top < _Idx) {
+				--_Idx;
+				_Idx >>= 1;
+				return true;
+			}
+			return false; // what happens if _Idx <= _Top ? then the parent of
+							// _Idx will locate before _Top, which is not
+							// supposed to be done;
+		}
+
+		int push_heap(int _Top, int _Hole, _Ty _Val) { // percolate _Hole to
+														// _Top or where _Val
+														// belongs
+			_Idx = _Hole;
+			while (shr(_Top) && pred.compare(get(_Idx), _Val) < 0) {// move
+																	// _Hole up
+																	// to parent
+				set(_Hole, get(_Idx));
+				_Hole = _Idx;
+			}
+			set(_Hole, _Val);// drop _Val into final hole
+			return _Hole;
+		}
+
+		// dequeue operator
+		// pop *_First to *(_Last - 1) and reheap, using pred
+		public _Ty poll() {
+			if (size() == 0)
+				return null;
+			_Ty _Val = get(0);
+			if (size() == 1) {
+				remove(0);
+				return _Val;
+			}
+
+			set(0, get(size() - 1));
+			remove(size() - 1);
+			adjust_heap(0);
+			return _Val;
+		}
+
+		// dequeue operator
+		// pop *_First to *(_Last - 1) and reheap, using pred
+		public _Ty poll(int i) {
+			_Ty _Val = get(i);
+
+			_Ty end = get(size() - 1);
+			remove(size() - 1);
+			if (i != size()) {
+				set(i, end);
+				adjust_heap(i);
+			}
+			return _Val;
+		}
+
+		// enqueue operator
+		public boolean add(_Ty _Val) {
+			super.add(_Val);
+			push_heap(0, size() - 1, _Val);
+			return true;
+		}
+
+		// enqueue operator
+		public int push(_Ty _Val) {
+			super.add(_Val);
+			int _Hole = push_heap(0, size() - 1, _Val);
+			return _Hole;
+		}
+
+		int reset(int i, _Ty _Val) {
+			// allow i to equal size??
+			assert (i <= size());
+			super.set(i, _Val);
+			return adjust_heap(i);
+		}
+
+		public _Ty peek() {
+			if (size() == 0)
+				return null;
+			return get(0);
+		}
+	}
+
+	public static class PriorityDict<_Ty> extends ArrayList<_Ty> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
+		public Comparator<_Ty> pred;
+		public Map<_Ty, Integer> map = new HashMap<_Ty, Integer>();
+
+		public PriorityDict(Comparator<_Ty> pred) {
+			this.pred = pred;
+		}
+
+		// default to a maximum heap;
+		public PriorityDict() {
+			this(true);
+		}
+
+		public PriorityDict(boolean bMaximumHeap) {
+			if (bMaximumHeap)
+				this.pred = new Comparator<_Ty>() {
+					@SuppressWarnings("unchecked")
+					@Override
+					public int compare(_Ty o1, _Ty o2) {
+						return ((Comparable<? super _Ty>) o1).compareTo(o2);
+					}
+				};
+			else
+				this.pred = new Comparator<_Ty>() {
+					@SuppressWarnings("unchecked")
+					@Override
+					public int compare(_Ty o1, _Ty o2) {
+						return ((Comparable<? super _Ty>) o2).compareTo(o1);
+					}
+				};
+		}
+
+		public PriorityDict(ArrayList<_Ty> arr) {
+			this();
+			make_heap(arr);
+		}
+
+		public PriorityDict(_Ty[] arr) {
+			this();
+			make_heap(arr, arr.length);
+		}
+
+		public void make_heap(_Ty ptr[], int size) {
+			for (int i = 0; i < size; ++i)
+				add(ptr[i]);
+			make_heap();
+		}
+
+		public void make_heap(ArrayList<_Ty> arr) {
+			for (int i = 0; i < arr.size(); ++i)
+				add(arr.get(i));
+			make_heap();
+		}
+
+		// make nontrivial [_First, _Last) into a heap, using pred
+		public void make_heap() {
+			int _Hole = size() >> 1;
+			while (0 < _Hole--)
+				// reheap top half, bottom to top
+				adjust_heap(_Hole);
+		}
+
+		private static int _Idx; // used to look for the right kinder / parent.
+
+		// look for the right kinder _Idx * 2 + 2; remember the left kinder is
+		// _Idx * 2 + 1, the right kinder might have exceed the array bound and
+		// we might have failed to find the left kinder.
+		private boolean shl() {
+			++_Idx;
+			_Idx <<= 1;
+			return _Idx < size();
+		}
+
+		int adjust_heap(int _Hole) { // percolate _Hole to _Bottom, then push
+										// _Val, using pred
+			_Ty _Val = get(_Hole);
+			int _Top = _Hole;
+			_Idx = _Hole;
+			while (shl()) { // move _Hole down to larger kinder
+				if (pred.compare(get(_Idx), get(_Idx - 1)) < 0)
+					--_Idx;
+				set(_Hole, get(_Idx));
+				map.put(get(_Idx), _Hole);
+
+				_Hole = _Idx;
+			}
+
+			if (_Idx == size()) { // only kinder at bottom, move _Hole down to
+									// it
+				--_Idx;
+				set(_Hole, get(_Idx));
+				map.put(get(_Idx), _Hole);
+
+				_Hole = _Idx;
+			}
+			return push_heap(_Top, _Hole, _Val);
+		}
+
+		private boolean shr(int _Top) {// look for the right kinder (_Idx - 1) /
+										// 2; remember the left kinder is _Idx *
+										// 2 + 1, the right kinder might have
+										// exceed the array bound and we might
+										// have failed to find the left kinder.
+			if (_Top < _Idx) {
+				--_Idx;
+				_Idx >>= 1;
+				return true;
+			}
+			return false; // what happens if _Idx <= _Top ? then the parent of
+							// _Idx will locate before _Top, which is not
+							// supposed to be done;
+		}
+
+		int push_heap(int _Top, int _Hole, _Ty _Val) { // percolate _Hole to
+														// _Top or where _Val
+														// belongs
+			_Idx = _Hole;
+			while (shr(_Top) && pred.compare(get(_Idx), _Val) < 0) {// move
+																	// _Hole up
+																	// to parent
+				set(_Hole, get(_Idx));
+				map.put(get(_Idx), _Hole);
+
+				_Hole = _Idx;
+			}
+			set(_Hole, _Val);// drop _Val into final hole
+			map.put(_Val, _Hole);
+
+			return _Hole;
+		}
+
+		// dequeue operator
+		// pop *_First to *(_Last - 1) and reheap, using pred
+		public _Ty poll() {
+			if (size() == 0)
+				return null;
+			_Ty _Val = get(0);
+			if (size() == 1) {
+				remove(0);
+				return _Val;
+			}
+
+			set(0, get(size() - 1));
+			map.put(get(size() - 1), 0);
+
+			remove(size() - 1);
+			map.remove(_Val);
+
+			adjust_heap(0);
+			validity_check();
+			return _Val;
+		}
+
+		void validity_check() {
+			assert map.size() == this.size();
+
+			for (Entry<_Ty, Integer> p : map.entrySet()) {
+				if (!p.getKey().equals(get(p.getValue()))) {
+					System.out.println(p);
+					System.out.println(map);
+					System.out.println(this);
+				}
+			}
+		}
+
+		public void erase(_Ty element) {
+			if (!map.containsKey(element))
+				return;
+			this.poll(this.map.get(element));
+			this.map.remove(element);
+			validity_check();
+		}
+
+		// dequeue operator
+		// pop *_First to *(_Last - 1) and reheap, using pred
+		public _Ty poll(int i) {
+			_Ty _Val = get(i);
+
+			_Ty end = get(size() - 1);
+			remove(size() - 1);
+			if (i != size()) {
+				set(i, end);
+				map.put(end, i);
+
+				adjust_heap(i);
+			}
+			return _Val;
+		}
+
+		// enqueue operator
+		public boolean add(_Ty _Val) {
+			if (this.map.containsKey(_Val))
+				return false;
+
+			super.add(_Val);
+			push_heap(0, size() - 1, _Val);
+			validity_check();
+			return true;
+		}
+
+		// enqueue operator
+		public int push(_Ty _Val) {
+			if (this.map.containsKey(_Val))
+				return this.map.get(_Val);
+
+			map.put(_Val, size());
+
+			super.add(_Val);
+			int _Hole = push_heap(0, size() - 1, _Val);
+			validity_check();
+			return _Hole;
+		}
+
+		int reset(int i, _Ty _Val) {
+			// allow i to equal size??
+			assert (i <= size());
+			super.set(i, _Val);
+			map.put(_Val, i);
+
+			return adjust_heap(i);
+		}
+
+		public _Ty peek() {
+			if (size() == 0)
+				return null;
+			return get(0);
+		}
+	}
 }

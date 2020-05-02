@@ -3,8 +3,11 @@
 <%@ page contentType="text/html;charset=utf-8" pageEncoding="utf-8"%>
 
 <%
-	out.print(Jsp.join(MySQL.instance.insert("tbl_syntax_cn", request.getParameterValues("text"),
+	String lang = (String) request.getAttribute("lang");
+	out.print(Jsp.join(MySQL.instance.insert("tbl_syntax_" + lang, request.getParameterValues("text"),
 			request.getParameterValues("infix"), request.getParameterValues("training"))));
+	
+	out.print(Jsp.javaScript("onchange_table('syntax', '%s')", lang));
 %>
 <br>
 model configuration:
@@ -26,7 +29,3 @@ model configuration:
 		onafterpaste='input_nonnegative_number'> <br> <input
 		type=submit name=tbl_syntax_cn_training value=training>
 </form>
-
-<script>
-	changeTable('syntax_cn');
-</script>

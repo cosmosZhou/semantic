@@ -30,7 +30,7 @@
 %>
 
 <script>
-	changeTable('segment_cn');
+	onchange_table('segment', 'cn');
 	mysql.rand.checked = true;
 	mysql.training.value = 2;
 	mysql.limit.value = 256;

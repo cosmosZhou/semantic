@@ -39,14 +39,14 @@
 	String lines[] = {"mysql.cmd.value = '%s'", "mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
 			"changeInputlength(mysql.relation_text, true)", seg_script, "mysql.training.value = %d",
 			"mysql.rand.checked = %s", "mysql.limit.value = %s",
-			"if (mysql.cmd.value != 'select*') onchangeTable(mysql.cmd)",
+			"if (mysql.cmd.value != 'select') onchange_cmd(mysql.cmd)",
 			"if (mysql.cmd.value == 'update') mysql.replacement.value = '%s'"};
 
 	out.print(Jsp.javaScript(String.join(";", lines), cmd, Utility.quote(text), relation_text,
 			Utility.quote(seg), training, rand == null ? "false" : "true",
 			limit < 0 ? "" : String.valueOf(limit), replacement != null ? Utility.quote(replacement) : null));
 
-	String lang = table.split("_")[1];
+	String lang = request.getParameter("lang");
 
 	System.out.println("limit = " + limit);
 
@@ -102,32 +102,32 @@
 			if (matcher != null) {
 				if (matcher.text != null) {
 					sql = String.format(
-							"%s %s set text = regexp_replace(text, '%s', '%s'), seg = regexp_replace(seg, '%s', '%s') %s",
-							cmd, table, Utility.quote_mysql(matcher.text),
+							"%s tbl_%s_%s set text = regexp_replace(text, '%s', '%s'), seg = regexp_replace(seg, '%s', '%s') %s",
+							cmd, table, lang, Utility.quote_mysql(matcher.text),
 							Utility.quote_mysql(matcher.text_replacement), Utility.quote_mysql(matcher.seg),
 							Utility.quote_mysql(matcher.seg_replacement), condition);
 				} else {
-					sql = String.format("%s %s set seg = regexp_replace(seg, '%s', '%s') %s", cmd, table,
-							Utility.quote_mysql(matcher.seg), Utility.quote_mysql(matcher.seg_replacement),
-							condition);
+					sql = String.format("%s tbl_%s_%s set seg = regexp_replace(seg, '%s', '%s') %s", cmd, table,
+							lang, Utility.quote_mysql(matcher.seg),
+							Utility.quote_mysql(matcher.seg_replacement), condition);
 				}
 				out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
 						Utility.str_html(sql)));
-				sql = String.format("select* from tbl_%s %s", table, condition);
+				sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 			} else {
-				cmd = "select*";
-				sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+				cmd = "select";
+				sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 			}
 
 			break;
 		case "delete" :
-			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 			out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
 					Utility.str_html(sql)));
-			sql = String.format("select* from tbl_tbl_%s %s", table, condition);
+			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 			break;
 		default :
-			sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 	}
 
 	List<Map<String, Object>> list;
@@ -182,16 +182,6 @@
 		out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>",
 				Utility.str_html(sql)));
 	}
-%>
-
-<div>
-	insert into tbl_<%=table%>(text, seg) values( <input type=button
-		onClick='add_segment_item(this.parentElement.nextElementSibling, "")'
-		value=text> / <input id=syntax_file name=syntax_file type=file
-		onchange='handleFiles(this, add_segment_item)' value='text'
-		accept='.txt' style='width: 5em;' title=''>, ...)<br> <br>
-</div>
-<%
 	if (!list.isEmpty()) {
 		out.print("count(*) = " + list.size());
 %>
@@ -236,12 +226,12 @@
 
 			}
 	%>
-	<input type=submit name='<%=table%>_submit' value=submit>
+	<input type=submit name='<%=table%>_<%=lang%>_submit' value=submit>
 </form>
 
 <%
 	}
-	if (cmd.equals("select*") && !discrepant) {
+	if (cmd.equals("select") && !discrepant) {
 %>
 <script>
 	fill_tbl_segment();

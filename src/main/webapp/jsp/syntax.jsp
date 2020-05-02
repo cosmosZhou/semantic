@@ -27,7 +27,7 @@
 	out.print(Jsp.javaScript(String.join(";", lines), Utility.quote(text), relation_text,
 			rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit), training));
 
-	String lang = table.split("_")[1];
+	String lang = request.getParameter("lang");
 
 	System.out.println("limit = " + limit);
 
@@ -55,7 +55,7 @@
 	//	if (cmd.equals("update")) {
 	//		sql = String.format("%s %s set infix = %s %s", cmd, table, infix, condition);
 	//	} else {
-	sql = String.format("%s from tbl_%s %s", cmd, table, condition);
+	sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
 	//	}
 
 	System.out.println(sql);
@@ -82,16 +82,6 @@
 		out.print(String.format("<p class=select ondblclick='mysql_execute(this)'>%s</p>",
 				Utility.str_html(sql)));
 	}
-%>
-
-<div>
-	insert into tbl_<%=table%>(text, label) values( <input type=button
-		onClick='add_syntax_item(this.parentElement.nextElementSibling, "")'
-		value=text> / <input id=syntax_file name=syntax_file type=file
-		onchange='handleFiles(this, add_syntax_item)' value='text'
-		accept='.txt' style='width: 5em;' title=''>, ...)<br>
-</div>
-<%
 	out.print("count(*) = " + list.size());
 %>
 <form name=form method=post>
@@ -102,7 +92,7 @@
 			out.print(Jsp.createSyntaxEditor(text, infix, (boolean) (Boolean) dict.get("training")));
 		}
 	%>
-	<input type=submit name='<%=table%>_submit' value=submit>
+	<input type=submit name='<%=table%>_<%=lang%>_submit' value=submit>
 </form>
 <script>
 	fill_tbl_syntax();

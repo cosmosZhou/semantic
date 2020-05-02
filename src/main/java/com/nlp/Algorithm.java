@@ -542,7 +542,13 @@ public class Algorithm {
 		if (result.isEmpty()) {
 			String seg[] = Native.segmentCN(text);
 			String pos[] = Native.posCN(seg);
-
+			System.out.println("pos = " + String.join(", ", pos));
+			String[] dep = pos.clone();
+			int head[] = Native.depCN(seg, pos, dep);
+			System.out.println("result from cpp: ");
+			System.out.println("head = " + Utility.toString(head));
+			System.out.println("dep = " + String.join(", ", dep));
+			
 			for (int i = 0; i < pos.length; i++) {
 				pos[i] = String.format("'%s'", pos[i]);
 				seg[i] = String.format("'%s'", Utility.quote(seg[i]));
@@ -552,6 +558,8 @@ public class Algorithm {
 					String.join(",", seg), String.join(",", pos)));
 
 			map = Utility.dejsonify(json, HashMap.class);
+			System.out.println("result from python: " + map);
+
 
 			map.put("training", "+" + new Random().nextInt(2));
 		} else {
@@ -565,7 +573,7 @@ public class Algorithm {
 			map.putAll(dict);
 		}
 
-		System.out.println("dict = " + map);
+//		System.out.println("dict = " + map);
 		return Utility.jsonify(map);
 	}
 

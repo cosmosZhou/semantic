@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang.SystemUtils;
 import org.apache.log4j.Logger;
@@ -231,7 +232,7 @@ public class MySQL extends DataSource.MySQLDataSource {
 		return execute(String.format(sql, args));
 	}
 
-	public List<Map<String, Object>> select_from(String sql, Object ...args) {
+	public List<Map<String, Object>> select_from(String sql, Object... args) {
 		return select(String.format(sql, args));
 	}
 
@@ -439,6 +440,10 @@ public class MySQL extends DataSource.MySQLDataSource {
 					values[j] = args[j][i];
 					if (description[j].Type.startsWith("varchar")) {
 						values[j] = String.format("'%s'", Utility.quote_mysql(values[j]));
+					}
+					else if (description[j].Type.startsWith("enum")) {
+						if (!Pattern.compile("\\d+").matcher(values[j]).matches())
+							values[j] = String.format("'%s'", values[j]);						
 					}
 				}
 

@@ -1,6 +1,5 @@
 body {
-	background-color: rgb(199, 237, 204);
-	white-space: nowrap;
+	background-color: rgb(199, 237, 204);	
 }
 
 input[type="file"] {
@@ -19,7 +18,8 @@ input[type="file"] {
 	font-style: normal;
 	font-family: 新宋体, 宋体;
 	font-size: 1em;
-	font-weight: normal;	
+	font-weight: normal;
+	white-space: nowrap;	
 }
 
 .monospace {
