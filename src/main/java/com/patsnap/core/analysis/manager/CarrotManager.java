@@ -321,11 +321,12 @@ public class CarrotManager {
 	public static CarrotManager instance = new CarrotManager();
 
 	public static class ClusteringResult {
-		ClusteringResult(String[] list, HashMap<String, List<String>> map, Map<String, ArrayList<String>> cluster,
+		ClusteringResult(String[] list, Map<String, List<String>> map, Map<String, List<String>> cluster,
 				int numFromSolr, double solr_duration, double clustering_duration, double postprocessing_duration,
 				double hyponym_detection_duration) {
 			this.list = list;
-
+			this.cluster = cluster;
+			
 			this.map = map;
 			this.numFromSolr = numFromSolr;
 			this.solr_duration = solr_duration;
@@ -342,10 +343,10 @@ public class CarrotManager {
 		}
 
 		public String[] list;
-		public Map<String, ArrayList<String>> cluster = new HashMap<String, ArrayList<String>>();
+		public Map<String, List<String>> cluster = new HashMap<String, List<String>>();
 
 		@JsonIgnore // field to ignore
-		public HashMap<String, List<String>> map;
+		public Map<String, List<String>> map;
 
 		public double solr_duration;
 		public double clustering_duration;
@@ -355,7 +356,7 @@ public class CarrotManager {
 		public int cache_index;
 
 		@SuppressWarnings("unchecked")
-		public static HashMap<String, List<String>>[] cache = new HashMap[128];
+		public static Map<String, List<String>>[] cache = new HashMap[128];
 	}
 
 	public ClusteringResult getClusteringResult(String language, String text, int rows)
@@ -368,8 +369,8 @@ public class CarrotManager {
 		int numFromSolr = patentDataMap.size();
 
 		List<String> list = new ArrayList<String>();
-		HashMap<String, List<String>> map = new HashMap<String, List<String>>();
-		Map<String, ArrayList<String>> cluster = new HashMap<String, ArrayList<String>>();
+		Map<String, List<String>> map = new HashMap<String, List<String>>();
+		Map<String, List<String>> cluster = new HashMap<String, List<String>>();
 		if (patentDataMap.isEmpty())
 			return new ClusteringResult(new String[0], map, cluster, numFromSolr, solr_duration, 0, 0, 0);
 
@@ -390,7 +391,7 @@ public class CarrotManager {
 
 		double clustering_duration = timer.report("clusterPatentsToWordClouds");
 
-		List<String> listPhrases = new ArrayList<String>();
+		Set<String> setPhrases = new HashSet<String>();
 		switch (languageCode) {
 		case CHINESE_SIMPLIFIED:
 			for (String phrase : list) {
@@ -398,7 +399,7 @@ public class CarrotManager {
 					map.remove(phrase);
 					continue;
 				}
-				listPhrases.add(phrase);
+				setPhrases.add(phrase);
 			}
 			break;
 		case ENGLISH:
@@ -407,7 +408,7 @@ public class CarrotManager {
 					map.remove(phrase);
 					continue;
 				}
-				listPhrases.add(phrase);
+				setPhrases.add(phrase);
 			}
 			break;
 		default:
@@ -416,6 +417,7 @@ public class CarrotManager {
 
 		double postprocessing_duration = timer.report("Native.keyword(jstringArray)");
 
+		List<String> listPhrases = new ArrayList<String>(setPhrases);
 		listPhrases.sort(new Comparator<String>() {
 			@Override
 			public int compare(String o1, String o2) {
@@ -428,8 +430,12 @@ public class CarrotManager {
 		}
 
 		String array[] = Utility.toArray(listPhrases);
-
-		int[] heads = Native.hyponymStructureCN(array);
+		int frequency[] = new int [array.length];
+		for (int i = 0; i < frequency.length; i++) {
+			frequency[i] = map.get(array[i]).size();			
+		}
+		
+		int[] heads = Native.hyponymStructureCN(array, frequency);
 		for (int child = 0; child < heads.length; ++child) {
 			int parent = heads[child];
 			if (parent < 0) {

@@ -148,20 +148,20 @@
 				case "update" :
 					for (Map<String, Object> dict : list) {
 						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("reword"),
-								label_replacement, (boolean) (Boolean) dict.get("training"),
+								label_replacement, (Boolean) dict.get("training"),
 								!label_replacement.equals(dict.get("label"))));
 					}
 					break;
 				case "delete" :
 					for (Map<String, Object> dict : list) {
 						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("reword"),
-								(String) dict.get("label"), (boolean) (Boolean) dict.get("training"), false));
+								(String) dict.get("label"), (Boolean) dict.get("training"), false));
 					}
 					break;
 				default :
 					for (Map<String, Object> dict : list) {
 						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("reword"),
-								(String) dict.get("label"), (boolean) (Boolean) dict.get("training"), false));
+								(String) dict.get("label"), (Boolean) dict.get("training"), false));
 					}
 
 			}

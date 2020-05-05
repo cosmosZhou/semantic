@@ -142,11 +142,16 @@ public class Jsp {
 	}
 
 	public static String createLexiconEditor(String x, String y, String label, boolean training, boolean changed) {
+		return createLexiconEditor(x, y, label, training ? 1 : 0, changed);
+	}
+
+	public static String createLexiconEditor(String x, String y, String label, int training, boolean changed) {
 		String lines[] = {
 				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
 				String.format("<input type=hidden name=reword value='%s'>", Utility.quote_html(y)),
 				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)), Jsp.createLexiconSelector(label),
-				String.format("<br><input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div>" };
+				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + training),
+				"</div><br>" };
 
 		return String.join("", lines);
 	}
@@ -210,8 +215,7 @@ public class Jsp {
 
 	public static String createLexiconSelector(String selected) {
 		String[] categorySelector = { "hypernym", "hyponym", "synonym", "antonym", "related", "unrelated" };
-		return generateSelectorIndexed(categorySelector, selected, "label",
-				"changeColor(this, this.nextElementSibling)");
+		return generateSelector(categorySelector, selected, "label", "changeColor(this, this.nextElementSibling)");
 	}
 
 	public static String create_keyword_selector(int selected) {

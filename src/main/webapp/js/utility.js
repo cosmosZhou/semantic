@@ -109,12 +109,12 @@ function rand_check(checked) {
 	else
 		checked = '';
 
-	return `order by rand() <input type="checkbox" name=rand ${checked} onchange="changeLimit(this)">`;
+	return `order by rand() <input type=checkbox name=rand ${checked} onchange="changeLimit(this)">`;
 }
 
 function limit_check(limit, max) {	
 	var limit_fn = max? `input_nonnegative_integer(this, ${max})` : 'input_nonnegative_integer(this)';	
-	return `limit <input id=limit type='text' name=limit style='width:2.5em;' value = ${limit} onkeyup= "${limit_fn}" onafterpaste="${limit_fn}">`;
+	return `limit <input id=limit type=text name=limit style='width:2.5em;' value = ${limit} onkeyup= "${limit_fn}" onafterpaste="${limit_fn}">`;
 }
 
 function generateComparisonRelation(name) {
@@ -191,7 +191,7 @@ function like_statement(text, method) {
 	return `${text} ${like}<input id=${text} type=text name=${text} style='width:8em;' onkeydown='changeInputlength(this);'>`;
 }
 
-function generateEqualityRelation(label) {
+function generateEqualitySelector(label) {
 	var onchange = 'changeInputlength(this, true); ';	
 	return generateSelector(['=', '!='], '=', `relation_${label}`, onchange, 'width:1em;', "non-arrowed");
 }
@@ -205,7 +205,37 @@ function tableSelector(table, lang, text) {
 		+ ' where ' + like_statement(text);
 }
 
-function onchange_cmd_insert(div){	
+function create_regexp_selector(name){
+	var select = document.createElement('select');
+	select.setAttribute('name', 'relation_' + name);
+	select.setAttribute('class', 'non-arrowed');
+	select.setAttribute('style', 'width:3.2em;');
+	select.setAttribute('onchange', "changeInputlength(this, true)");
+	select.appendChild(new Option('like', 'like'));
+	select.appendChild(new Option('like binary', 'like binary'));
+	select.appendChild(new Option('regexp', 'regexp'));
+	select.appendChild(new Option('=', '='));	
+	select.appendChild(new Option('not like', 'not like'));
+	select.appendChild(new Option('not like binary', 'not like binary'));
+	select.appendChild(new Option('not regexp', 'not regexp'));
+	select.appendChild(new Option('!=', '!='));
+	select.value = 'regexp';
+	return select;
+}
+
+function create_equality_selector(name){
+	var select = document.createElement('select');
+	select.setAttribute('name', 'relation_' + name);
+	select.setAttribute('class', 'non-arrowed');
+	select.setAttribute('style', 'width:1em;');
+	select.setAttribute('onchange', "changeInputlength(this, true)");
+	select.appendChild(new Option('=', '='));	
+	select.appendChild(new Option('!=', '!='));
+	select.value = '=';
+	return select;
+}
+
+function onchange_cmd_from_update_to_select(div){	
 	var y_before = div.childNodes[1].nextSibling.nextElementSibling.nextSibling;
 	// set seg = replace(seg,
 	console.log('y_before = ');
@@ -247,21 +277,7 @@ function onchange_cmd_insert(div){
 		div.insertBefore(y, x_next);
 		div.removeChild(y_after);
 		
-		var select = document.createElement('select');
-		select.setAttribute('name', 'relation_' + y.name);
-		select.setAttribute('class', 'non-arrowed');
-		select.setAttribute('style', 'width:3.2em;');
-		select.setAttribute('onchange', "changeInputlength(this, true)");
-		select.appendChild(new Option('like', 'like'));
-		select.appendChild(new Option('like binary', 'like binary'));
-		select.appendChild(new Option('regexp', 'regexp'));
-		select.appendChild(new Option('=', '='));
-		
-		select.appendChild(new Option('not like', 'not like'));
-		select.appendChild(new Option('not like binary', 'not like binary'));
-		select.appendChild(new Option('not regexp', 'not regexp'));
-		select.appendChild(new Option('!=', '!='));
-		select.value = 'regexp';
+		var select = create_regexp_selector(y.name);
 		
 		y_before_str = y_before_str.substr(0, y_before_str.length - 2);				
 		div.insertBefore(select, y);
@@ -275,6 +291,202 @@ function onchange_cmd_insert(div){
 	}
 }
 
+function onchange_cmd_from_insert_to_select(div){	
+	var training = Cookie.instance.get('training');
+	var rand = Cookie.instance.get('rand');	
+	var limit = Cookie.instance.get('limit');
+	console.log('training = ' + training);
+	console.log('rand = ' + rand);
+	console.log('limit = ' + limit);
+	div.lastChild.remove();
+	div.lastChild.remove();
+	
+	var where_clause = mysql.lang.nextSibling;	
+	var pretext = where_clause;
+	while(true){
+		var arg = pretext.nextSibling;
+		if (arg == null)
+			break;
+		pretext.nodeValue = 'and ' + arg.name + ' ';
+		switch(arg.type){
+		case 'text':
+			div.insertBefore(create_regexp_selector(arg.name), arg);
+			break;
+		case 'select-one':
+			div.insertBefore(create_equality_selector(arg.name), arg);			
+			break;
+		case 'checkbox':
+		case 'radio':
+		case 'select-multiple':
+		default:
+			pretext.nodeValue += '= '; 
+			break;
+		}
+		arg.removeAttribute('onkeyup');
+		pretext = arg.nextSibling;
+	}
+	
+	where_clause.nodeValue = where_clause.nodeValue.replace('and', ' where');
+	
+	var select = document.createElement('select');
+	select.name = 'training';
+	select.appendChild(new Option('false', '0'));
+	select.appendChild(new Option('true', '1'));
+	select.appendChild(new Option('anomaly', '2'));
+	select.appendChild(new Option('', ''));
+	select.value = training? training : '';
+	div.lastChild.nodeValue = 'and training = ';
+	div.appendChild(select);
+		
+	var checkbox = document.createElement('input');
+	checkbox.type = 'checkbox';
+	checkbox.name = 'rand';
+	checkbox.setAttribute('onchange', 'changeLimit(this)');
+	if (rand == 'on')
+		checkbox.checked = true;
+	div.appendChild(document.createTextNode("order by rand()"));
+	div.appendChild(checkbox);
+	
+	var limit_text = document.createElement('input');
+	limit_text.name = 'limit';
+	limit_text.type = 'text';
+	limit_text.style = 'width:2.5em;';
+	limit_text.setAttribute('onkeyup', `input_nonnegative_integer(this, 1000)`);
+	limit_text.setAttribute('onafterpaste', `input_nonnegative_integer(this, 1000)`);
+	limit_text.value = limit;
+	div.appendChild(document.createTextNode("limit "));
+	div.appendChild(limit_text);
+
+	var submit = document.createElement('input');
+	submit.type = 'submit';
+	submit.value = 'query';
+	submit.name = 'submit_query';
+	
+	div.parentElement.appendChild(submit);
+}
+
+function onchange_cmd_from_select_to_update(div){
+	console.log("update is selected");
+	var where_clause = div.childNodes[5];
+	console.log('where_clause = ');
+	console.log(where_clause);
+	
+	var y = div.children[div.children.length - 4];
+	
+	var replaceClause = y.type == 'text' && y.onkeyup == null && y.getAttribute('onafterpaste') == null;		
+	
+	var y_before = y.previousSibling;
+	
+	if (replaceClause){
+		if (y_before.nodeName != "#text"){			
+			div.removeChild(y_before);
+			y_before = y.previousSibling;
+		}		
+		
+		var y_after = y.nextSibling;			
+		
+		console.log('y = ');
+		console.log(y);
+	
+		console.log('y_after = ');
+		console.log(y_after);
+		
+		div.removeChild(y);		
+		
+		var text_after_y = $(y_after).text();
+		console.log("$(y_after).text() = " + text_after_y);
+		
+		var mid = text_after_y.indexOf("and");
+		
+		y_after.nodeValue = text_after_y.substr(mid);
+		
+		if (y_before == where_clause){
+			var text_before_y = y_before.textContent;
+			var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("where") + 5);
+			where_clause.nodeValue = "where";
+			where_clause.nextSibling.nodeValue = where_clause.nextSibling.nodeValue.substr(3);
+		}
+		else{
+			div.removeChild(y_before);
+			var text_before_y = y_before.textContent;
+			var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
+		}
+		if (!set_clause.endsWith(" = "))
+			set_clause += "= ";	
+		
+		console.log("y.type = " + y.type);		
+		
+		console.log("y.name = "+ y.name);
+
+		set_clause += 'replace({0}, '.format(y.name);
+		div.insertBefore(document.createTextNode(set_clause), where_clause);
+		var replacement = y.cloneNode(false);
+		
+		replacement.id = 'replacement';
+		replacement.setAttribute('name', 'replacement');
+		
+		div.insertBefore(y, where_clause);
+		div.insertBefore(document.createTextNode(", "), where_clause);
+		
+		text_after_y = ') ';
+		
+		div.insertBefore(replacement, where_clause);
+		div.insertBefore(document.createTextNode(text_after_y), where_clause);
+			
+		y.focus();			
+	}
+	else{
+		// dependent variable is restricted to number input
+		if (y_before.nodeName != "#text"){
+			y_before = y_before.previousSibling;
+		}		
+		
+		var y_after = y.nextSibling;			
+		
+		console.log('y = ');
+		console.log(y);
+	
+		console.log('y_after = ');
+		console.log(y_after);
+		
+		var text_after_y = $(y_after).text();
+		console.log("$(y_after).text() = " + text_after_y);
+		
+		var mid = text_after_y.indexOf("and");
+		
+		y_after.nodeValue = text_after_y.substr(mid);
+		
+		var text_before_y = y_before.textContent;
+		var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
+
+		if (!set_clause.endsWith(" = "))
+			set_clause += "= ";	
+		
+		var replacement = y.cloneNode(true);
+					
+		if (y.type == 'select-one'){
+			var selectedIndex = y.selectedIndex + 1;
+			console.log('selectedIndex = ' + selectedIndex);
+			if (y.children.length - selectedIndex <= 1){
+				selectedIndex = 0;					
+			}
+			console.log('selectedIndex = ' + selectedIndex);
+			replacement.selectedIndex = selectedIndex;
+		}
+		else{
+			replacement.value = y.value;	
+		}
+		
+		replacement.name = y.name + '_replacement';
+		replacement.id = y.id + '_replacement';
+		
+		div.insertBefore(document.createTextNode(set_clause), where_clause);
+		
+		div.insertBefore(replacement, where_clause);
+		replacement.focus();
+	}	
+}
+
 function onchange_cmd(self) {
 	var div = self.parentElement;
 	var from_clause = div.childNodes[1];
@@ -284,145 +496,35 @@ function onchange_cmd(self) {
 	switch (self.value){
 	case 'update':
 		from_clause.nodeValue = " tbl_";
+		if (from_clause_str.indexOf("into") >= 0)
+			onchange_cmd_from_insert_to_select(div);
 		
-		console.log("update is selected");
-		var where_clause = div.childNodes[5];
-		console.log('where_clause = ');
-		console.log(where_clause);
-		
-		var y = div.children[div.children.length - 4];
-		
-		var replaceClause = y.type == 'text' && y.onkeyup == null && y.getAttribute('onafterpaste') == null;		
-		
-		var y_before = y.previousSibling;
-		
-		if (replaceClause){
-			if (y_before.nodeName != "#text"){			
-				div.removeChild(y_before);
-				y_before = y.previousSibling;
-			}		
-			
-			var y_after = y.nextSibling;			
-			
-			console.log('y = ');
-			console.log(y);
-		
-			console.log('y_after = ');
-			console.log(y_after);
-			
-			div.removeChild(y);		
-			
-			var text_after_y = $(y_after).text();
-			console.log("$(y_after).text() = " + text_after_y);
-			
-			var mid = text_after_y.indexOf("and");
-			
-			y_after.nodeValue = text_after_y.substr(mid);
-			
-			if (y_before == where_clause){
-				var text_before_y = y_before.textContent;
-				var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("where") + 5);
-				where_clause.nodeValue = "where";
-				where_clause.nextSibling.nodeValue = where_clause.nextSibling.nodeValue.substr(3);
-			}
-			else{
-				div.removeChild(y_before);
-				var text_before_y = y_before.textContent;
-				var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
-			}
-			if (!set_clause.endsWith(" = "))
-				set_clause += "= ";	
-			
-			console.log("y.type = " + y.type);		
-			
-			console.log("y.name = "+ y.name);
-
-			set_clause += 'replace({0}, '.format(y.name);
-			div.insertBefore(document.createTextNode(set_clause), where_clause);
-			var replacement = y.cloneNode(false);
-			
-			replacement.id = 'replacement';
-			replacement.setAttribute('name', 'replacement');
-			
-			div.insertBefore(y, where_clause);
-			div.insertBefore(document.createTextNode(", "), where_clause);
-			
-			text_after_y = ') ';
-			
-			div.insertBefore(replacement, where_clause);
-			div.insertBefore(document.createTextNode(text_after_y), where_clause);
-				
-			y.focus();			
-		}
-		else{
-			// dependent variable is restricted to number input
-			if (y_before.nodeName != "#text"){
-				y_before = y_before.previousSibling;
-			}		
-			
-			var y_after = y.nextSibling;			
-			
-			console.log('y = ');
-			console.log(y);
-		
-			console.log('y_after = ');
-			console.log(y_after);
-			
-			var text_after_y = $(y_after).text();
-			console.log("$(y_after).text() = " + text_after_y);
-			
-			var mid = text_after_y.indexOf("and");
-			
-			y_after.nodeValue = text_after_y.substr(mid);
-			
-			var text_before_y = y_before.textContent;
-			var set_clause = " set" + text_before_y.substr(text_before_y.indexOf("and") + 3);
-
-			if (!set_clause.endsWith(" = "))
-				set_clause += "= ";	
-			
-			var replacement = y.cloneNode(true);
-						
-			if (y.type == 'select-one'){
-				var selectedIndex = y.selectedIndex + 1;
-				console.log('selectedIndex = ' + selectedIndex);
-				if (y.children.length - selectedIndex <= 1){
-					selectedIndex = 0;					
-				}
-				console.log('selectedIndex = ' + selectedIndex);
-				replacement.selectedIndex = selectedIndex;
-			}
-			else{
-				replacement.value = y.value;	
-			}
-			
-			replacement.name = y.name + '_replacement';
-			replacement.id = y.id + '_replacement';
-			
-			div.insertBefore(document.createTextNode(set_clause), where_clause);
-			
-			div.insertBefore(replacement, where_clause);
-			replacement.focus();
-		}
+		onchange_cmd_from_select_to_update(div);
 		break;
-	case "select":
+	case 'select':
 		if (from_clause_str.indexOf("*") >= 0)
 			return;
 		from_clause.nodeValue = "* from tbl_";
 		if (from_clause_str.indexOf("from") >= 0)			
-			return;		
-		onchange_cmd_insert(div);
+			return;
+		if (from_clause_str.indexOf("into") >= 0)
+			onchange_cmd_from_insert_to_select(div);
+		else
+			onchange_cmd_from_update_to_select(div);		
 		break;
-	case "delete":
+	case 'delete':
 		if (from_clause_str.startsWith("from"))
 			return;
 		from_clause.nodeValue = "from tbl_";
 		if (from_clause_str.indexOf("from") >= 0)			
 			return;				
 		
-		onchange_cmd_insert(div);
+		if (from_clause_str.indexOf("into") >= 0)
+			onchange_cmd_from_insert_to_select(div);
+		else
+			onchange_cmd_from_update_to_select(div);		
 		break;
-	case "insert":
+	case 'insert':
 		from_clause.nodeValue = "into tbl_";
 		var table = from_clause.nextSibling.value;
 		var where_clause = div.childNodes[5];
@@ -447,6 +549,11 @@ function onchange_cmd(self) {
 		
 		while (arg){
 			var next = arg.nextSibling;
+			
+			if (arg.type == 'checkbox')
+				Cookie.instance.set(arg.name, arg.checked);
+			else
+				Cookie.instance.set(arg.name, arg.value);			
 			div.removeChild(arg);
 			arg = next;
 		}
@@ -482,7 +589,7 @@ function onchange_table(tablename, lang) {
 	console.log("lang = " + lang);
 	var div = document.getElementById("division");
 	switch (tablename) {
-		case "intent":
+		case 'intent':
 			request_get(
 				{
 					variable: 'serviceSelector',
@@ -490,9 +597,9 @@ function onchange_table(tablename, lang) {
 				function (serviceSelector) {
 					div.innerHTML = tableSelector('intent', lang, 'text')
 						+ "and service =" + generateSelector(serviceSelector, '', 'service', 'update_slotSelector(this)', 'width:5em;')
-						+ `and intent.<select id='slot' name=slot style='width:5em;'></select> like <input id=entity type='text' name=entity style='width:3em;' onkeydown='changeInputlength(this);'>`
-						+ `and training = <input id=training type='text' name=training style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
-						+ `and syntactic = <input id=syntactic type='text' name=syntactic style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
+						+ `and intent.<select id='slot' name=slot style='width:5em;'></select> like <input id=entity type=text name=entity style='width:3em;' onkeydown='changeInputlength(this);'>`
+						+ `and training = <input id=training type=text name=training style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
+						+ `and syntactic = <input id=syntactic type=text name=syntactic style='width:2em;' onkeyup= "input_nonnegative_integer(this)" onafterpaste="input_nonnegative_integer(this)">`
 						+ timestamp_select + rand_check(false) + limit_check(40, 1000)
 						+ "acquire from" + generateSelector(['', 'python', '云之声'], '', 'log');
 					mysql.text.focus();
@@ -500,7 +607,7 @@ function onchange_table(tablename, lang) {
 			);
 
 			break;
-		case "service":
+		case 'service':
 			request_get(
 				{
 					variable: 'categorycontextSelector',
@@ -520,7 +627,7 @@ function onchange_table(tablename, lang) {
 			);
 
 			break;
-		case "repertoire":
+		case 'repertoire':
 			request_get(
 				{
 					variable: 'serviceSelector',
@@ -530,65 +637,65 @@ function onchange_table(tablename, lang) {
 						+ "and service =" + generateSelector(serviceSelector, '', 'service', 'update_slotSelector(this)', 'width:5em;')
 						+ "and slot =" + generateSelector([''], '', 'slot', 'update_codeSelector(this)', 'width:5em;')
 						+ "and code =" + generateSelector([''], '', 'code', '', 'width:5em;')						
-						+ `<input id=char_length type='text' name=char_length style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
+						+ `<input id=char_length type=text name=char_length style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
 						+ rand_check(false) + limit_check(40, 1000);
 					mysql.text.focus();
 				}
 			);
 
 			break;
-		case "paraphrase":
+		case 'paraphrase':
 			div.innerHTML = tableSelector('paraphrase', lang, 'text')
 				+ 'and ' + like_statement('paraphrase')
 				+ "and score " + generateComparisonRelation('score')
-				+ `<input id=score type='text' name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
+				+ `<input id=score type=text name=score style='width:2.5em;' onkeyup= "input_positive_integer(this)" onafterpaste="input_positive_integer(this)">`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "lexicon":
+		case 'lexicon':
 			var labelSelector = generateSelector(['hypernym','hyponym', 'synonym', 'antonym', 'related', 'unrelated'], '', 'label', '');
-			var switcher = generateEqualityRelation('label');
+			var switcher = generateEqualitySelector('label');
 			div.innerHTML = tableSelector('lexicon', lang, 'text')
 				+ 'and ' + like_statement('reword')
 				+ `and label ${switcher}${labelSelector}`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "toChinese":
+		case 'toChinese':
 			div.innerHTML = tableSelector('toChinese', lang, 'text')
 				+ 'and ' + like_statement('translation')
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "syntax":
+		case 'syntax':
 			div.innerHTML = tableSelector('syntax', lang, 'text')
 				+ 'and ' + like_statement('infix')
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "segment":
+		case 'segment':
 			div.innerHTML = tableSelector('segment', lang, 'text')
 				+ "and " + like_statement('seg')
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "phatic":
+		case 'phatic':
 			var labelSelector = generateSelector(['NEUTRAL', 'PERTAIN'], '', 'label', '');
 
 			div.innerHTML = tableSelector('phatic', lang, 'text')
 				+ `and label = ${labelSelector}`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "qatype":
+		case 'qatype':
 			var labelSelector = generateSelector(['QUERY', 'REPLY'], '', 'label', '');
 
 			div.innerHTML = tableSelector('qatype', lang, 'text')
 				+ `and label = ${labelSelector}`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "keyword":
+		case 'keyword':
 			var labelSelector = generateSelectorIndexed(["untechnical", 'technical'], '', 'label', '');			
 			
 			div.innerHTML = tableSelector('keyword', lang, 'text')
 				+ "and label = " + labelSelector 
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
-		case "pretraining":			
+		case 'pretraining':			
 			div.innerHTML = tableSelector('pretraining', lang, 'title')
 				+ "and " + like_statement('text')				
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
@@ -689,7 +796,7 @@ function add_ner_field(div, text, service, slot) {
 				text = '';
 			}
 
-			html += `</select> = <input type='text' name='fragment[]' style='${style}' onchange='changeColor(this,this.parentElement.nextElementSibling)' onkeydown='entity_onkeydown(event, this)' onfocus = 'this.nextElementSibling.disabled = true' onblur='reselect_from_tbl_repertoire(this)' value = ${text}>
+			html += `</select> = <input type=text name='fragment[]' style='${style}' onchange='changeColor(this,this.parentElement.nextElementSibling)' onkeydown='entity_onkeydown(event, this)' onfocus = 'this.nextElementSibling.disabled = true' onblur='reselect_from_tbl_repertoire(this)' value = ${text}>
 				<input type='checkbox' name='repertoire' disabled onchange='update_tbl_repertoire(this)'>&nbsp;`;
 
 			update_html(div);
@@ -930,6 +1037,19 @@ function add_lexicon_item(text, reword, label) {
 	console.log('text = ' + text);
 	console.log('reword = ' + reword);
 	console.log('label = ' + label);
+	if (text > reword){
+		var tmp = text;
+		text = reword;
+		reword = tmp;
+		switch(label){
+		case 'hyponym':
+			label = 'hypernym';
+			break;
+		case 'hypernym':
+			label = 'hyponym';
+			break;
+		}
+	}
 	
 	var html = `<input type=text name=text value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> / `;
 
@@ -942,7 +1062,7 @@ function add_lexicon_item(text, reword, label) {
 function add_item(handler, array){
 	function html_wrapper(html){
 		var training = Math.floor(Math.random() * 2);
-		return `<div>${html}<br><input type=hidden name=training value='+${training}'></div>`
+		return `<div>${html}<input type=hidden name=training value='+${training}'></div><br>`
 	}
 	
 	var html = "";
@@ -967,7 +1087,9 @@ function add_item(handler, array){
 	}
 	
 	for (let div of form.children) {
-		if (div.type == 'div' && div.children[0].type != 'text') 
+		if (div.nodeName != 'DIV')
+			continue;
+		if (div.children[0].type != 'text') 
 			break;
 		update_html(div);
 	}
@@ -1001,7 +1123,7 @@ function add_keyword_item(text, label) {
 	}
 	
 	text = quote_html(text);
-	var html = `<input type='text' name='text' value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> = `;
+	var html = `<input type=text name='text' value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> = `;
 	
 	html += generateSelectorIndexed(["untechnical", "technical"], label, 'label', 'changeColor(this, this.nextElementSibling)');
 	return html;
@@ -1125,7 +1247,7 @@ function add_repertoire_item(text, service, slot, code) {
 
 	console.log('code = ' + code);
 
-	var html = `<input type='text' name='text' value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
+	var html = `<input type=text name='text' value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
 
 	html += generateSelector(serviceSelector, service, 'service', 'onchange_tbl_repertoire_service(this)', '', 'onfocus_tbl_repertoire_service(this)');
 	html += ' = ';
@@ -1900,7 +2022,8 @@ function onsubmit_segment(self){
 
 function onkeyup_input(event){
 	if (event.keyCode === 13) {		
-		console.log("event.keyCode = " + event.keyCode);		
+		console.log("event.keyCode = " + event.keyCode);
+// var forms = document.querySelectorAll("form")
 		console.log("document.forms.length = " + document.forms.length);
 		var lang = mysql.lang.value;
 		var task = mysql.table.value;
@@ -2201,7 +2324,7 @@ function insert_into_mysql(input) {
 	console.log(div);
 	console.log('div.name = ' + div.getAttribute('name'));
 	switch (div.getAttribute('name')) {
-		case "paraphrase_division":
+		case 'paraphrase_division':
 			console.log(div.childNodes);
 			div.removeChild(div.childNodes[2]);
 			console.log(div.childNodes);
@@ -2585,4 +2708,46 @@ function concurrency_test(){
 			mysql.insertBefore(info, element);
 		})(mysql.children[i+1]));		
 	}	
+}
+
+class Cookie{
+	static instance = new Cookie();
+	
+	constructor() {
+		this.dict = {};
+		console.log("document.cookie = " + document.cookie);
+		var cookie = document.cookie.split(";");
+		// console.log(cookie);
+		for (var i = 0; i < cookie.length; ++i) {
+			var pair = cookie[i].trim().split("=");
+			if (pair.length != 2)
+				continue;
+			console.log(pair);
+			this.dict[pair[0]] = unescape(pair[1]);
+		}
+	}
+	
+	set(key, value) {
+		if (!key || !value){
+			this.del(key);
+			return;
+		}
+			
+		document.cookie = key + "=" + escape(value);
+		this.dict[key] = value;
+		console.log("cookie = " + document.cookie);
+		console.log("this.dict = ");
+		console.log(this.dict);
+	}
+
+	get(key) {
+		return this.dict[key];
+	}
+	
+	del(key){
+		var expires = new Date();
+		expires.setTime(expires.getTime() - 10);
+		document.cookie = key + '=' + escape('null') + ';expires=' + expires.toGMTString();
+		delete this.dict[key];
+	}
 }

@@ -17,24 +17,33 @@
 	String training = request.getParameter("training");
 	System.out.println("training = " + training);
 
-	String pretraining_weight = request.getParameter("pretraining_weight");
-	System.out.println("pretraining_weight = " + pretraining_weight);
+	String incremental = request.getParameter("incremental");
+	if (incremental == null)
+		incremental = "off";
+	
+	System.out.println("incremental = " + incremental);
 
 	String limit = request.getParameter("limit");
+	if (limit.isEmpty())
+		limit = "0";
+	
 	System.out.println("limit = " + limit);
 
 	out.print("<br>epochs = " + epochs);
 	out.print("<br>batch_size = " + batch_size);
 	out.print("<br>limit = " + limit);
 	out.print("<br>training = " + training);
-	out.print("<br>pretraining_weight = " + pretraining_weight);
+	out.print("<br>incremental = " + incremental);
 	out.print("<br>training report:<br>");
 
-	String result = Python.training("tbl_paraphrase_" + lang, epochs, batch_size, limit, training, pretraining_weight);
+	String result = Python.training("tbl_lexicon_" + lang, epochs, batch_size, limit, training, incremental);
 	out.print("<br>" + result);
 	out.print("<br>press enter to view the discrepant training / testing instances!");
 
-	out.print(Jsp.javaScript("onchange_table('paraphrase', '%s')", lang));
+	out.print(Jsp.javaScript("onchange_table('lexicon', '%s')", lang));
+	synchronized (Native.class) {
+		Native.reinitializeLexiconCN();
+	}
 %>
 
 <script>

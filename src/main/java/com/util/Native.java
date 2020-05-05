@@ -6,6 +6,10 @@ import org.ahocorasick.trie.Trie;
 
 //javah -jni com.util.Native
 public class Native {
+	public native static void reinitializeLexiconCN();
+	
+	public native static void reinitializeLexiconEN();
+	
 	public native static void reinitializeSyntaxParser();
 
 	public native static void reinitializeCWSTagger();
@@ -16,7 +20,13 @@ public class Native {
 
 	public native static void reinitializeKeywordEN();
 
-	public native static int[] hyponymStructureCN(String[] keywords);
+	public native static int[] hyponymStructureCN(String[] keywords, int frequency[]);
+
+	public native static String hyponymCN(String hypernym, String hyponym);
+
+	public native static double[][] hyponymCNs(String text[]);
+
+	public native static String hyponymEN(String hypernym, String hyponym);
 
 	public native static int[] depCN(String[] seg, String[] pos, String[] dep);
 

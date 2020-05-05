@@ -1,3 +1,5 @@
+<%@page import="java.util.Comparator"%>
+<%@page import="java.util.ArrayList"%>
 <%@page import="java.util.Map"%>
 <%@page import="java.util.List"%>
 <%@page
@@ -28,32 +30,35 @@
 	}
 
 	String text = request.getParameter("text");
-	if (text != null && !text.isEmpty()) {
-		String lang = request.getParameter("lang");
-		String table = "keyword_" + lang;
+	if (text == null || text.isEmpty()) {
+		return;
+	}
 
-		int rows = Integer.valueOf(request.getParameter("rows"));
+	String lang = request.getParameter("lang");
+	String table = "keyword";
 
-		System.out.println("lang = " + lang);
-		System.out.println("rows = " + rows);
+	int rows = Integer.valueOf(request.getParameter("rows"));
 
-		out.print(Jsp.javaScript("mysql.text.value = '%s'", text));
+	System.out.println("lang = " + lang);
+	System.out.println("rows = " + rows);
 
-		ClusteringResult result = CarrotManager.instance.getClusteringResult(lang, text, rows);
-		out.print("time cost in solr (in seconds) = " + result.solr_duration + "<br>");
-		out.print("time cost in clustering (in seconds) = " + result.clustering_duration + "<br>");
-		out.print("time cost in postprocessing (in seconds) = " + result.postprocessing_duration + "<br>");
-		out.print(
-				"time cost in hyponym_detection (in seconds) = " + result.hyponym_detection_duration + "<br>");
-		out.print("number of patents from solr = " + result.numFromSolr + "<br>");
+	out.print(Jsp.javaScript("mysql.text.value = '%s'", text));
+
+	final ClusteringResult result = CarrotManager.instance.getClusteringResult(lang, text, rows);
+	out.print("time cost in solr (in seconds) = " + result.solr_duration + "<br>");
+	out.print("time cost in clustering (in seconds) = " + result.clustering_duration + "<br>");
+	out.print("time cost in postprocessing (in seconds) = " + result.postprocessing_duration + "<br>");
+	out.print("number of patents from solr = " + result.numFromSolr + "<br>");
+
+	Random rnd = new Random();
+	if (request.getAttribute("jsp").equals("WordCloud.jsp")) {
 		out.print("number of key phrases extracted = " + result.list.length + "<br>");
 %>
 
 <br>
 <form name=keyword method=post>
 	<%
-		Random rnd = new Random();
-			for (String _text : result.list) {
+		for (String _text : result.list) {
 				List<Map<String, Object>> sqlResult = MySQL.instance
 						.select_from("select label from tbl_%s_%s where text = '%s'", table, lang, _text);
 
@@ -79,8 +84,8 @@
 				switch (lang) {
 					case "cn" :
 						href = String.format(
-								"index.jsp?table=segment_cn&javaScript=add_segment_from_solr(\"%s\", %d)", _text,
-								result.cache_index);
+								"index.jsp?table=segment&lang=cn&javaScript=add_segment_from_solr(\"%s\", %d)",
+								_text, result.cache_index);
 						break;
 					case "en" :
 						href = String.format("index.jsp?javaScript=add_segment_en_from_solr(\"%s\", %d)", _text,
@@ -95,13 +100,10 @@
 						href, _text);
 				out.print(Jsp.createKeywordEditor(_text, href, label, rnd.nextInt(2), changed));
 			}
-			out.print(String.format("<input type=submit name=%s_submit value=submit>", table));
+			out.print(String.format("<input type=submit name=%s_%s_submit value=submit>", table, lang));
 	%>
-
 </form>
-<%
-	}
-%>
+
 <script>
 	var children = keyword.children;
 	var columnSize = 7;
@@ -114,3 +116,86 @@
 		}
 	}
 </script>
+<%
+	} else {
+		out.print("time cost in hyponym_detection (in seconds) = " + result.hyponym_detection_duration + "<br>");
+		out.print("number of clusters aggregated = " + result.cluster.size() + "<br>");
+%>
+<form name=hyponym method=post>
+	<%
+		ArrayList<String> list = new ArrayList<String>(result.cluster.keySet());
+
+			list.sort(new Comparator<String>() {
+				@Override
+				public int compare(String o1, String o2) {
+					return Integer.compare(result.cluster.get(o2).size(), result.cluster.get(o1).size());
+				}
+			});
+
+			for (String hypernym : list) {
+				List<String> hyponyms = result.cluster.get(hypernym);
+				out.print(hypernym + " : " + String.join(", ", hyponyms));
+				for (String hyponym : hyponyms) {
+					String x, y;
+					if (hypernym.compareToIgnoreCase(hyponym) > 0) {
+						y = hypernym;
+						x = hyponym;
+					} else {
+						x = hypernym;
+						y = hyponym;
+					}
+
+					List<Map<String, Object>> sqlResult = MySQL.instance.select_from(
+							"select label from tbl_lexicon_%s where text = '%s' and reword = '%s'", lang, x, y);
+
+					boolean changed;
+					String label = null;
+					if (sqlResult.isEmpty()) {
+						switch (lang) {
+							case "cn" :
+								label = Native.hyponymCN(x, y);
+								break;
+							case "en" :
+								label = Native.hyponymEN(x, y);
+								break;
+						}
+						changed = true;
+					} else {
+						changed = false;
+						label = (String) sqlResult.get(0).get("label");
+					}
+
+					out.print(Jsp.createLexiconEditor(x, y, label, rnd.nextInt(2), changed));
+				}
+
+			}
+			out.print(String.format("<input type=submit name=lexicon_%s_submit value=submit>", lang));
+	%>
+</form>
+
+<script>
+	
+	var lang = '<%=lang%>';
+	
+	console.log("hyponym.children.length = " + hyponym.children.length);
+	for (let div of hyponym.children) { 
+		if (div.nodeName != 'DIV')
+			continue;
+		if (!div.lastChild.value.startsWith('+')){
+			var text = div.children[0].value;
+			var reword = div.children[1].value;
+			var label = div.children[2];
+			request_post('algorithm/hyponym', {lang: lang, text: text, reword: reword}, 'text').done((label=>
+			res=> {
+				console.log("res from Java = " + res);
+				if (res != label.value){
+					label.style.color = 'red';
+				}
+			})(label));
+		}
+	}
+	
+</script>
+<%
+	}
+%>

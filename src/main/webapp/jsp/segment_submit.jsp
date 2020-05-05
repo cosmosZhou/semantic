@@ -24,7 +24,7 @@ model configuration:
 	= <input type=text name=pretraining_weight value=0.5
 		onkeyup='input_nonnegative_number(this)'
 		onafterpaste='input_nonnegative_number'> <br> <input
-		type=submit name=tbl_segment_cn_training value=training>
+		type=submit name=segment_cn_training value=training>
 </form>
 
 <script>

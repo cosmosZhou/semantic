@@ -217,6 +217,14 @@ public class Utility {
 		return x;
 	}
 
+	public static DoubleMatrix absi(DoubleMatrix x) {
+		for (int i = 0; i < x.length; ++i) {
+			x.data[i] = Math.abs(x.data[i]);
+		}
+
+		return x;
+	}
+
 	public static class BinaryReader {
 		public DataInputStream dis;
 		private String s_FilePath;

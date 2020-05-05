@@ -487,6 +487,27 @@ public class Algorithm {
 	}
 
 	@POST
+	@Path("hyponym")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String hyponym(@Context HttpServletRequest request) throws Exception {
+		String text = request.getParameter("text");
+		String reword = request.getParameter("reword");
+		
+//		System.out.println("text = " + text);
+//		System.out.println("reword = " + reword);
+		
+		switch (request.getParameter("lang")) {
+		case "cn":
+			return Native.hyponymCN(text, reword);
+		case "en":
+			return Native.hyponymEN(text, reword);
+		default:
+			return null;
+		}
+	}
+
+	@POST
 	@Path("cache")
 	@Consumes("application/x-www-form-urlencoded")
 	@Produces("text/plain;charset=utf-8")
