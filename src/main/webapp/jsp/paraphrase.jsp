@@ -26,6 +26,8 @@
 	String score = request.getParameter("score");
 	String relation_score = request.getParameter("relation_score");
 
+	String score_replacement = request.getParameter("score_replacement");
+
 	int training = Jsp.getTraining(request);
 	String rand = request.getParameter("rand");
 	int limit = Jsp.getLimit(request);
@@ -67,7 +69,7 @@
 	}
 
 	if (!score.isEmpty()) {
-		conditions.add(Jsp.process_text("score", relation_score, score));
+		conditions.add(Jsp.process_text("score", relation_score, Integer.parseInt(score)));
 	}
 
 	boolean discrepant = false;
@@ -86,10 +88,12 @@
 		condition += "limit " + limit;
 
 	switch (cmd) {
-		case "update" :
-			cmd = "select";
-			sql = String.format("%s from tbl_%s_$s %s", cmd, table, lang, condition);
-
+		case "update" :			
+			sql = String.format("%s tbl_%s_%s set score = %s %s", cmd, table, lang, score_replacement, condition);
+			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
+					Utility.str_html(sql)));
+			
+			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 			break;
 		case "delete" :
 			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
@@ -132,10 +136,12 @@
 		boolean deleted = cmd.equals("delete");
 			switch (cmd) {
 				case "update" :
+					int score_replacement_value = Integer.valueOf(score_replacement);
 					for (Map<String, Object> dict : list) {
+						int score_value = (Integer) dict.get("score");
 						out.print(Jsp.createParaphraseEditor((String) dict.get("text"),
-								(String) dict.get("paraphrase"), (Integer) dict.get("score"),
-								(boolean) (Boolean) dict.get("training"), false));
+								(String) dict.get("paraphrase"), score_replacement_value,
+								(boolean) (Boolean) dict.get("training"), score_replacement_value != score_value));
 					}
 					break;
 				case "delete" :

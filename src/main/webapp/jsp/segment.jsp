@@ -127,7 +127,7 @@
 			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
 			break;
 		default :
-			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
+			sql = String.format("%s * from tbl_%s_%s %s", cmd, table, lang, condition);
 	}
 
 	List<Map<String, Object>> list;

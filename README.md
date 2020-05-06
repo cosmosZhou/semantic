@@ -10,6 +10,7 @@ copy semantic.war -> tomcat/webapps
 sh tomcat/bin/start.sh
 
 vim tomcat/webapps/semantic/WEB-INF/classes/config.ini
+http://192.168.3.133:8080/semantic/WheelOfInnovation.jsp
 
 [mysql]
 

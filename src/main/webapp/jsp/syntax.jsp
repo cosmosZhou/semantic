@@ -12,19 +12,30 @@
 	String cmd = request.getParameter("cmd");
 	String table = request.getParameter("table");
 	String text = request.getParameter("text");
-
+	String relation_text = request.getParameter("relation_text");
+	
+	String infix = request.getParameter("infix");
+	String relation_infix = request.getParameter("relation_infix");
 	int limit = Jsp.getLimit(request);
 
 	int training = Jsp.getTraining(request);
 	String rand = request.getParameter("rand");
-
-	String relation_text = request.getParameter("relation_text");
-
+	
 	String lines[] = {"mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
-			"changeInputlength(mysql.relation_text, true)", "mysql.rand.checked = %s", "mysql.limit.value = %s",
+			"changeInputlength(mysql.relation_text, true)", 
+			
+			"mysql.infix.value = '%s'", "mysql.relation_infix.value = '%s'",
+			"changeInputlength(mysql.relation_infix, true)", 
+			
+			"mysql.rand.checked = %s", "mysql.limit.value = %s",
 			"mysql.training.value = %d"};
 
-	out.print(Jsp.javaScript(String.join(";", lines), Utility.quote(text), relation_text,
+	out.print(Jsp.javaScript(String.join(";", lines), 
+			
+			Utility.quote(text), relation_text,
+			
+			Utility.quote(infix), relation_infix,
+			
 			rand == null ? "false" : "true", limit < 0 ? "" : String.valueOf(limit), training));
 
 	String lang = request.getParameter("lang");
@@ -35,6 +46,10 @@
 	List<String> conditions = new ArrayList<String>();
 	if (!text.isEmpty()) {
 		conditions.add(Jsp.process_text("text", relation_text, text));
+	}
+
+	if (!infix.isEmpty()) {
+		conditions.add(Jsp.process_text("infix", relation_infix, infix));
 	}
 
 	boolean discrepant = false;
@@ -52,11 +67,27 @@
 	if (!discrepant && limit >= 0)
 		condition += "limit " + limit;
 
-	//	if (cmd.equals("update")) {
-	//		sql = String.format("%s %s set infix = %s %s", cmd, table, infix, condition);
-	//	} else {
-	sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
-	//	}
+	switch (cmd) {
+		case "update" :
+/*			
+			sql = String.format("%s tbl_%s_%s set infix = regexp_replace(seg, '%s', '%s') %s", cmd, table, lang,
+					Utility.quote_mysql(matcher.seg), Utility.quote_mysql(matcher.seg_replacement), condition);
+			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
+					Utility.str_html(sql)));
+*/			
+			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
+			break;
+		case "delete" :
+			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
+			out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
+					Utility.str_html(sql)));
+			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
+			break;
+		case "insert" :
+		default :
+			sql = String.format("%s * from tbl_%s_%s %s", cmd, table, lang, condition);
+			break;
+	}
 
 	System.out.println(sql);
 	if (!cmd.startsWith("select")) {
@@ -88,7 +119,7 @@
 	<%
 		for (Map<String, Object> dict : list) {
 			text = (String) dict.get("text");
-			String infix = (String) dict.get("infix");
+			infix = (String) dict.get("infix");
 			out.print(Jsp.createSyntaxEditor(text, infix, (boolean) (Boolean) dict.get("training")));
 		}
 	%>

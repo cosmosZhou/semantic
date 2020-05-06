@@ -15,7 +15,6 @@
 	//	request.setCharacterEncoding("utf-8");
 	String cmd = request.getParameter("cmd");
 	String table = request.getParameter("table");
-	table = "bert." + table;
 
 	String text = request.getParameter("text");
 	String relation_text = request.getParameter("relation_text");
@@ -89,21 +88,21 @@
 
 			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
 					Utility.str_html(sql)));
-			sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
+			sql = String.format("select * from bert.tbl_%s_%s %s", table, lang, condition);
 		} else {
 			cmd = "select";
-			sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
+			sql = String.format("%s from bert.tbl_%s_%s %s", cmd, table, lang, condition);
 		}
 
 		break;
 	case "delete":
-		sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
+		sql = String.format("%s from bert.tbl_%s_%s %s", cmd, table, lang, condition);
 		out.print(String.format("<p class=delete ondblclick='mysql_execute(this)'>%s</p>",
 				Utility.str_html(sql)));
-		sql = String.format("select * from tbl_%s_%s %s", table, lang, condition);
+		sql = String.format("select * from bert.tbl_%s_%s %s", table, lang, condition);
 		break;
 	default:
-		sql = String.format("%s from tbl_%s_%s %s", cmd, table, lang, condition);
+		sql = String.format("%s * from bert.tbl_%s_%s %s", cmd, table, lang, condition);
 	}
 
 	List<Map<String, Object>> list = MySQL.instance.select(sql);
@@ -135,7 +134,7 @@
 			//				break;
 			default:
 				for (Map<String, Object> dict : list) {
-					out.print(Jsp.createPretrainingEditor((Integer) dict.get("id"), (String) dict.get("title"),
+					out.print(Jsp.createPretrainingEditor((int)(Integer) dict.get("id"), (String) dict.get("title"),
 							(String) dict.get("text"), null, false));
 				}
 

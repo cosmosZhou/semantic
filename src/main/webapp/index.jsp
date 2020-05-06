@@ -23,7 +23,7 @@
 
 <%
 	String[] link = Jsp.getParameterNames(request, "submit|(.+training)");
-	System.out.println(String.join(", ", link));
+	//System.out.println(String.join(", ", link));
 	if (link.length != 1)
 		return;
 	String task = link[0];

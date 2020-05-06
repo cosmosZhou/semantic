@@ -476,14 +476,28 @@ public class Algorithm {
 	@Produces("text/plain;charset=utf-8")
 	public String keyword(@Context HttpServletRequest request) throws Exception {
 		String text = request.getParameter("text");
-		switch (request.getParameter("lang").toLowerCase()) {
+		String lang = request.getParameter("lang");
+		String predict = request.getParameter("predict");
+		if (predict == null) {
+			List<Map<String, Object>> result = MySQL.instance
+					.select_from("select label, training from tbl_keyword_%s where text = '%s'", lang, Utility.quote_mysql(text));
+			if (!result.isEmpty()) {
+				return Utility.jsonify(result.get(0));
+			}			
+		}
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("changed", true);
+		switch (lang) {
 		case "cn":
-			return String.valueOf(Native.keywordCN(text));
+			map.put("label", Native.keywordCN(text));
+			break;
 		case "en":
-			return String.valueOf(Native.keywordEN(text));
+			map.put("label", Native.keywordEN(text));
+			break;
 		default:
 			return null;
 		}
+		return Utility.jsonify(map); 
 	}
 
 	@POST

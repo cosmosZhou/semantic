@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -35,6 +36,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1575,7 +1577,11 @@ public class Utility {
 		public String toString() {
 			return toString(max_width(), false);
 		}
-
+		
+		public String toString(int max_width) {
+			return toString(max_width, false);
+		}
+		
 		public String toString(int max_width, boolean shrink) {
 			StringBuffer cout = new StringBuffer();
 			int currLevel = 0;
@@ -2459,5 +2465,80 @@ public class Utility {
 				return null;
 			return get(0);
 		}
+	}
+
+	public static int max(int... arr) {
+		return arr[maxIndex(arr)];
+	}
+
+	public static int maxIndex(int... arr) {
+		int maxIndex = 0;
+
+		for (int x = 1; x < arr.length; x++) {
+			if (arr[x] > arr[maxIndex])
+				maxIndex = x;
+		}
+
+		return maxIndex;
+	}
+
+	public static String[] errorMark(int length, int... index) {
+		String[] tag = new String[length];
+		Arrays.fill(tag, "  ");
+		for (int i : index) {
+			tag[i] = "--";
+		}
+
+		return tag;
+	}
+
+	public static String[] toUpperCase(String[] str) {
+		for (int i = 0; i < str.length; i++) {
+			str[i] = str[i].toUpperCase();
+		}
+		return str;
+	}
+
+	static public String[] convertWithAlignment(String[]... arr) {
+		String[] res = new String[arr.length];
+		for (int i = 0; i < res.length; ++i) {
+			res[i] = "";
+		}
+
+		int size = arr[0].length;
+		for (int j = 0; j < size; ++j) {
+			int length[] = new int[arr.length];
+
+			for (int i = 0; i < arr.length; ++i) {
+				res[i] += arr[i][j] + ' ';
+				length[i] = strlen(arr[i][j]);
+			}
+
+			int maxLength = max(length);
+			for (int i = 0; i < arr.length; ++i) {
+				res[i] += toString(maxLength - length[i], ' ');
+			}
+		}
+
+		return res;
+	}
+
+	public static <T> TreeSet<T> intersect(TreeSet<T> a, TreeSet<T> b) {
+		TreeSet<T> ret = (TreeSet<T>) a.clone();
+		ret.retainAll(b);
+		// to ensure the same order of the elements in the hash set!
+		return ret;
+	}
+
+	public static <T> HashSet<T> intersect(HashSet<T> a, HashSet<T> b) {
+		HashSet<T> ret = (HashSet<T>) a.clone();
+		ret.retainAll(b);
+		// to ensure the same order of the elements in the hash set!
+		return ret;
+	}
+
+	public static BufferedReader readFromStdin() {
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		return br;
 	}
 }

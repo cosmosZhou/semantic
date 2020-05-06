@@ -15,6 +15,7 @@
 	int training = Jsp.getTraining(request);
 	String text = request.getParameter("text");
 
+	String label_replacement = request.getParameter("label_replacement");
 	int label = Jsp.getInt(request, "label");
 	String relation_text = request.getParameter("relation_text");
 	String rand = request.getParameter("rand");
@@ -45,11 +46,12 @@
 			conditions.add("training = " + training);
 	}
 
-	if (label >= 0) {
-		if (cmd.equals("update"))
-			conditions.add("label != " + label);
-		else
+	if (cmd.equals("update")) {
+		conditions.add("label != " + label_replacement);
+	} else {
+		if (label >= 0) {
 			conditions.add("label = " + label);
+		}
 	}
 
 	String condition = conditions.isEmpty() ? "" : "where " + String.join(" and ", conditions) + " ";
@@ -61,7 +63,8 @@
 
 	switch (cmd) {
 		case "update" :
-			sql = String.format("%s tbl_%s_%s set label = %s %s", cmd, table, label, lang, condition);
+			sql = String.format("%s tbl_%s_%s set label = %s %s", cmd, table, lang, label_replacement,
+					condition);
 			break;
 		case "select" :
 			sql = String.format("%s * from tbl_%s_%s %s", cmd, table, lang, condition);
@@ -119,9 +122,12 @@
 	}
 %>
 
-<form name=keyword method=post>
+<form name=form method=post>
 	<%
 		boolean changed = cmd.equals("update");
+		if (changed)
+			label = Integer.parseInt(label_replacement);
+
 		for (Map<String, Object> dict : list) {
 			text = (String) dict.get("text");
 			training = (Integer) dict.get("training");
@@ -130,7 +136,7 @@
 				label = (Integer) dict.get("label");
 			}
 
-			out.print(Jsp.createKeywordEditor(text, label, training, changed));
+			out.print(Jsp.createKeywordEditor(text, label, training == 1, changed));
 		}
 	%>
 	<input type=submit name='<%=table%>_<%=lang%>_submit' value=submit>

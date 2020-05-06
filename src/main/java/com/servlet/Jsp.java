@@ -3,15 +3,33 @@ package com.servlet;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 
+import com.nlp.syntax.Compiler;
+import com.nlp.syntax.SyntacticTree;
 import com.util.Utility;
 
 public class Jsp {
+	public static String editorWrapper(String[] elements, boolean training, boolean changed) {
+		String training_str;
+
+		if (changed)
+			training_str = "+";
+		else
+			training_str = "";
+
+		if (training)
+			training_str += "1";
+		else
+			training_str += "0";
+
+		return String.format("<div>%s<input type=hidden name=training value=%s></div><br>", String.join("", elements),
+				training_str);
+	}
+
 	public static String[] getParameterNames(HttpServletRequest request) {
 		ArrayList<String> list = new ArrayList<String>();
 		Enumeration<String> paramNames = request.getParameterNames();
@@ -48,21 +66,24 @@ public class Jsp {
 		return list.toArray(new String[list.size()]);
 	}
 
-	public static String createSyntaxEditor(String text, String infix, boolean training) {
-		@SuppressWarnings("unchecked")
-		HashMap<String, String> dict = Utility.dejsonify(
-				Python.eval(String.format("compiler.compile('%s').__str__(return_dict=True)", Utility.quote(infix))),
-				HashMap.class);
+	public static String createSyntaxEditor(String text, String infix, boolean training) throws Exception {
+		return editorWrapper(createSyntaxEditor(text, infix), training, false);
+	}
 
-		String infix_simplified = dict.get("infix");
-		String seg = dict.get("seg");
-		String pos = dict.get("pos");
-		String dep = dict.get("dep");
+	public static String[] createSyntaxEditor(String text, String infix) throws Exception {
+		SyntacticTree syntaxTree = Compiler.compile(infix);
 
-		String lines[] = { String.format("<div><input type=hidden name=text value='%s'>%s", text, text),
+		String[] args = new String[4];
+		String tree = syntaxTree.toString(null, args);
+		String infix_simplified = args[0];
+		String seg = args[1];
+		String pos = args[2];
+		String dep = args[3];
+
+		String lines[] = { String.format("<input type=hidden name=text value='%s'>%s", text, text),
 				String.format("<input type=hidden name=infix value='%s'>", Utility.quote_html(infix)),
 				String.format("<p class=monospace-p name=tree>%s</p>",
-						dict.get("tree").replaceAll(" ", "&ensp;").replaceAll("\\n", "<br>")),
+						tree.replaceAll(" ", "&ensp;").replaceAll("\\n", "<br>")),
 				String.format(
 						"<input type=text name=infix_simplified style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
 						String.format("width:%dem;", (Utility.strlen(infix_simplified) / 2 + 1)),
@@ -75,11 +96,10 @@ public class Jsp {
 						"<input type=text name=pos style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
 						String.format("width:%dem;", (Utility.strlen(pos) / 2 + 1)), pos.replaceAll(" ", "&ensp;")),
 				String.format(
-						"<input type=text name=dep style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
-						String.format("width:%dem;", (Utility.strlen(dep) / 2 + 1)), dep.replaceAll(" ", "&ensp;")),
-				String.format("<br><input type=hidden name=training value=%d></div>", training ? 1 : 0) };
+						"<input type=text name=dep style='%s' class=monospace value='%s' onchange='modify_structure(this)'>",
+						String.format("width:%dem;", (Utility.strlen(dep) / 2 + 1)), dep.replaceAll(" ", "&ensp;")) };
 
-		return String.join("", lines);
+		return lines;
 	}
 
 	public static String createSegmentEditor(String text, String seg, boolean training) {
@@ -91,16 +111,20 @@ public class Jsp {
 	}
 
 	public static String createSegmentEditor(String text, String seg, String mark, boolean training, boolean changed) {
-		return createSegmentEditor(text, text, seg, mark, training, changed);
+		return editorWrapper(createSegmentEditor(text, text, seg, mark), training, changed);
 	}
 
 	public static String createSegmentEditor(String text_replacement, String text, String seg, String mark,
 			boolean training) {
-		return createSegmentEditor(text_replacement, text, seg, mark, training, false);
+		return editorWrapper(createSegmentEditor(text_replacement, text, seg, mark), training, false);
 	}
 
 	public static String createSegmentEditor(String text_replacement, String text, String seg, String mark,
 			boolean training, boolean changed) {
+		return editorWrapper(createSegmentEditor(text_replacement, text, seg, mark), training, changed);
+	}
+
+	public static String[] createSegmentEditor(String text_replacement, String text, String seg, String mark) {
 		String lines[] = {
 				String.format("<input type=hidden name=text value='%s'>%s<br>", Utility.quote_html(text_replacement),
 						Utility.str_html(text)),
@@ -108,13 +132,21 @@ public class Jsp {
 						"<input type=text name=seg style='%s' %s='%s' class=monospace onchange='onchange_segment(this)' onkeydown='onkeydown_segment(this, event)'>",
 						String.format("width:%dem;", Math.max(32, Utility.strlen(seg) / 2 + 1)),
 						text_replacement.isEmpty() ? "placeholder" : "value", Utility.quote_html(seg)),
-				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + (training ? 1 : 0)),
-				mark == null ? "<br><br>" : "<br> " + mark.replaceAll(" ", "&ensp;") + "<br>", };
+				mark == null ? "<br>" : "<br> " + mark.replaceAll(" ", "&ensp;"), };
 
-		return String.join("", lines);
+		return lines;
 	}
 
-	public static String createPretrainingEditor(int id, String title, String text, String mark, boolean changed) {
+	public static String createPretrainingEditor(int id, String title, String text, String mark, boolean training) {
+		return createPretrainingEditor(id, title, text, mark, training, false);
+	}
+
+	public static String createPretrainingEditor(int id, String title, String text, String mark, boolean training,
+			boolean changed) {
+		return editorWrapper(createPretrainingEditor(id, title, text, mark), training, changed);
+	}
+
+	public static String[] createPretrainingEditor(int id, String title, String text, String mark) {
 		int strlen_title = Math.max(8, Utility.strlen(title) / 2 + 1);
 		String lines[] = { String.format("<input type=hidden name=id value=%d>", id),
 				String.format("<input type=text name=title style='%s' class=monospace value='%s'><br>",
@@ -122,54 +154,63 @@ public class Jsp {
 				String.format("<input type=text name=text style='%s' class=monospace value='%s'>",
 						String.format("width:%dem;", Math.max(64, Utility.strlen(text) / 2 + 1)),
 						Utility.quote_html(text)),
-				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + 1),
-				mark == null ? "<br><br>" : "<br> " + mark.replaceAll(" ", "&ensp;") + "<br>", };
+				mark == null ? "<br>" : "<br> " + mark.replaceAll(" ", "&ensp;"), };
 
-		return String.join("", lines);
+		return lines;
 	}
 
 	public static String createParaphraseEditor(String x, String y, int score, boolean training, boolean changed) {
-		String lines[] = {
-				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
+		return editorWrapper(createParaphraseEditor(x, y, score), training, changed);
+	}
+
+	public static String[] createParaphraseEditor(String x, String y, int score) {
+		String lines[] = { String.format("<input type=hidden name=text value='%s'>", Utility.quote_html(x)),
 				String.format("<input type=hidden name=paraphrase value='%s'>", Utility.quote_html(y)),
 				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)),
 				String.format(
 						"<input type=text name=score style='width:2.5em;' value=%d onkeyup='input_positive_integer(this)' onafterpaste='input_positive_integer(this)' onchange='changeColor(this, this.nextElementSibling)'>",
-						score),
-				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div><br>" };
+						score) };
 
-		return String.join("", lines);
+		return lines;
 	}
 
 	public static String createLexiconEditor(String x, String y, String label, boolean training, boolean changed) {
-		return createLexiconEditor(x, y, label, training ? 1 : 0, changed);
+		return editorWrapper(createLexiconEditor(x, y, label), training, changed);
 	}
 
-	public static String createLexiconEditor(String x, String y, String label, int training, boolean changed) {
-		String lines[] = {
-				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
+	public static String[] createLexiconEditor(String x, String y, String label) {
+		String lines[] = { String.format("<input type=hidden name=text value='%s'>", Utility.quote_html(x)),
 				String.format("<input type=hidden name=reword value='%s'>", Utility.quote_html(y)),
-				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)), Jsp.createLexiconSelector(label),
-				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + training),
-				"</div><br>" };
+				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)),
+				Jsp.createLexiconSelector(label) };
 
-		return String.join("", lines);
+		return lines;
 	}
 
 	public static String createTranslationEditor(String x, String y, boolean training, boolean changed) {
-		String lines[] = {
-				String.format("<div name=div><input type=hidden name=text value='%s'>", Utility.quote_html(x)),
+		return editorWrapper(createTranslationEditor(x, y), training, changed);
+	}
+
+	public static String[] createTranslationEditor(String x, String y) {
+		String lines[] = { String.format("<input type=hidden name=text value='%s'>", Utility.quote_html(x)),
 				String.format("%s<br>", Utility.str_html(x)),
 				String.format(
 						"<input type=text name=translation style='%s' value='%s' onchange='changeColor(this, this.nextElementSibling)'>",
-						String.format("width:%dem;", Utility.strlen(y) / 2 + 1), Utility.quote_html(y)),
-				String.format("<input type=hidden name=training value=%s>", (changed ? "+" : "") + 1), "</div><br>" };
+						String.format("width:%dem;", Utility.strlen(y) / 2 + 1), Utility.quote_html(y)) };
 
-		return String.join("", lines);
+		return lines;
 	}
 
-	public static String createKeywordEditor(String text, int label, int training) {
-		return createKeywordEditor(text, label, training, false);
+	public static String createKeywordEditor(String text, int label, boolean training) {
+		return editorWrapper(createKeywordEditor(text, label), training, false);
+	}
+
+	public static String createKeywordEditor(String text, int label, boolean training, boolean changed) {
+		return editorWrapper(createKeywordEditor(text, label), training, changed);
+	}
+
+	public static String createKeywordEditor(String text, String href, int label, boolean training, boolean changed) {
+		return editorWrapper(createKeywordEditor(text, href, label), training, changed);
 	}
 
 	public static String join(String[] array) throws IOException {
@@ -186,25 +227,19 @@ public class Jsp {
 		return String.join("<br>", array);
 	}
 
-	public static String createKeywordEditor(String text, int label, int training, boolean changed) {
-		String lines[] = {
-				String.format("<input type=hidden name=text value='%s'>%s = ", Utility.quote_html(text),
-						Utility.str_html(text)),
-				Jsp.create_keyword_selector(label),
-				changed ? String.format("<input type=hidden name=training value='+%d'><br><br>", training)
-						: String.format("<input type=hidden name=training value=%d><br><br>", training) };
+	public static String[] createKeywordEditor(String text, int label) {
+		String lines[] = { String.format("<input type=hidden name=text value='%s'>%s = ", Utility.quote_html(text),
+				Utility.str_html(text)), Jsp.create_keyword_selector(label) };
 
-		return String.join("", lines);
+		return lines;
 	}
 
-	public static String createKeywordEditor(String text, String href, int label, int training, boolean changed) {
+	public static String[] createKeywordEditor(String text, String href, int label) {
 		String lines[] = {
 				String.format("<input type=hidden name=text value='%s'>%s = ", Utility.quote_html(text), href),
-				Jsp.create_keyword_selector(label),
-				changed ? String.format("<input type=hidden name=training value='+%d'><br><br>", training)
-						: String.format("<input type=hidden name=training value=%d><br><br>", training) };
+				Jsp.create_keyword_selector(label) };
 
-		return String.join("", lines);
+		return lines;
 	}
 
 	public static String createKeywordSelector(String selected) {
@@ -355,6 +390,10 @@ public class Jsp {
 //		}
 
 		return String.format("%s %s '%s'", field, relation, text);
+	}
+
+	public static String process_text(String field, String relation, int value) {
+		return String.format("%s %s %s", field, relation, value);
 	}
 
 	public static void main(String[] args) {

@@ -18,7 +18,7 @@
 		String rows[] = request.getParameterValues("rows");
 
 		System.out.println(String.join(", ", texts));
-		out.print(Jsp.javaScript("for (var i = 1; i < %d; ++i) add_solr_item();", texts.length));
+		out.print(Jsp.javaScript("for (var i = 1; i < %d; ++i) insert_solr_item();", texts.length));
 
 		for (int i = 0; i < texts.length; ++i) {
 			out.print(Jsp.javaScript("mysql.children[1 + %d].children[0].value = '%s';", i, langs[i]));
@@ -84,11 +84,11 @@
 				switch (lang) {
 					case "cn" :
 						href = String.format(
-								"index.jsp?table=segment&lang=cn&javaScript=add_segment_from_solr(\"%s\", %d)",
+								"index.jsp?table=segment&lang=cn&javaScript=insert_segment_from_solr(\"%s\", %d)",
 								_text, result.cache_index);
 						break;
 					case "en" :
-						href = String.format("index.jsp?javaScript=add_segment_en_from_solr(\"%s\", %d)", _text,
+						href = String.format("index.jsp?javaScript=insert_segment_en_from_solr(\"%s\", %d)", _text,
 								result.cache_index);
 						break;
 					default :
@@ -98,7 +98,7 @@
 				href = String.format(
 						"<a href='%s' onmouseover='onmouseover_solrText(this, event)' onmouseout='onmouseout_solrText(this, event)'>%s</a>",
 						href, _text);
-				out.print(Jsp.createKeywordEditor(_text, href, label, rnd.nextInt(2), changed));
+				out.print(Jsp.createKeywordEditor(_text, href, label, rnd.nextInt(2) == 1, changed));
 			}
 			out.print(String.format("<input type=submit name=%s_%s_submit value=submit>", table, lang));
 	%>
@@ -149,23 +149,15 @@
 							"select label from tbl_lexicon_%s where text = '%s' and reword = '%s'", lang, x, y);
 
 					boolean changed;
-					String label = null;
+					String label = "";
 					if (sqlResult.isEmpty()) {
-						switch (lang) {
-							case "cn" :
-								label = Native.hyponymCN(x, y);
-								break;
-							case "en" :
-								label = Native.hyponymEN(x, y);
-								break;
-						}
 						changed = true;
 					} else {
 						changed = false;
 						label = (String) sqlResult.get(0).get("label");
 					}
 
-					out.print(Jsp.createLexiconEditor(x, y, label, rnd.nextInt(2), changed));
+					out.print(Jsp.createLexiconEditor(x, y, label, rnd.nextInt(2) == 1, changed));
 				}
 
 			}
@@ -181,10 +173,18 @@
 	for (let div of hyponym.children) { 
 		if (div.nodeName != 'DIV')
 			continue;
-		if (!div.lastChild.value.startsWith('+')){
-			var text = div.children[0].value;
-			var reword = div.children[1].value;
-			var label = div.children[2];
+		var text = div.children[0].value;
+		var reword = div.children[1].value;
+		var label = div.children[2];
+		
+		if (div.lastChild.value.startsWith('+')){
+			request_post('algorithm/hyponym', {lang: lang, text: text, reword: reword}, 'text').done((label=>
+			res=> {
+				label.value = res;
+				console.log("res from Java = " + res);
+			})(label));			
+		}
+		else{
 			request_post('algorithm/hyponym', {lang: lang, text: text, reword: reword}, 'text').done((label=>
 			res=> {
 				console.log("res from Java = " + res);

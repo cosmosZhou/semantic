@@ -357,12 +357,9 @@ function onchange_cmd_from_insert_to_select(div){
 	div.appendChild(document.createTextNode("limit "));
 	div.appendChild(limit_text);
 
-	var submit = document.createElement('input');
+	var submit = div.parentElement.lastElementChild;
 	submit.type = 'submit';
-	submit.value = 'query';
-	submit.name = 'submit_query';
-	
-	div.parentElement.appendChild(submit);
+	submit.removeAttribute('style');
 }
 
 function onchange_cmd_from_select_to_update(div){
@@ -563,14 +560,18 @@ function onchange_cmd(self) {
 		
 		var file = document.createElement('input');
 		file.type = 'file';		
-		file.setAttribute('onchange', `handleFiles(this, add_${table}_item)`);
+		file.setAttribute('onchange', 'handleFiles(this)');
 		file.accept = '.txt';
-		file.style = 'width: 5em;';		
+		file.style = 'width:5em;';		
 		div.appendChild(file);
 		div.appendChild(document.createTextNode(")"));
 		
-		div.nextElementSibling.remove();
+		var submit = div.nextElementSibling;
+		submit.type = 'text';		
+		submit.style = "display:none;";
+		
 		mysql.text.focus();
+		
 		break;
 	}
 	
@@ -720,7 +721,7 @@ function strlen(s) {
 	return length;
 }
 
-function add_ner_field(div, text, service, slot) {
+function insert_ner_field(div, text, service, slot) {
 	console.log('service = ' + service);
 	console.log('length = ' + div.children.length);
 	var columnSize = 3;
@@ -982,11 +983,11 @@ function refresh_ner_fields(self, div) {
 			console.log(semantic['intent']);
 
 			for (const slot in intent) {
-				add_ner_field(div, intent[slot], service, slot);
+				insert_ner_field(div, intent[slot], service, slot);
 			}
 		}
 		else {
-			add_ner_field(div, '', service);
+			insert_ner_field(div, '', service);
 		}
 
 		update_service_code_selector(self, code);
@@ -998,7 +999,7 @@ function refresh_ner_fields(self, div) {
 	}, callback);
 }
 
-function add_paraphrase_item(text, paraphrase, score) {
+function insert_paraphrase_item(text, paraphrase, score) {
 	var array = text.split('/');
 	if (array.length == 2) {
 		var x = array[0];
@@ -1019,7 +1020,7 @@ function add_paraphrase_item(text, paraphrase, score) {
 	return html;
 }
 
-function add_semantic_item(text, context, category) {
+function insert_semantic_item(text, context, category) {
 	console.log('context = ' + context);
 
 	console.log('category = ' + category);
@@ -1033,7 +1034,7 @@ function add_semantic_item(text, context, category) {
 	return html;
 }
 
-function add_lexicon_item(text, reword, label) {	
+function insert_lexicon_item(text, reword, label) {	
 	console.log('text = ' + text);
 	console.log('reword = ' + reword);
 	console.log('label = ' + label);
@@ -1059,7 +1060,12 @@ function add_lexicon_item(text, reword, label) {
 	return html;
 }
 
-function add_item(handler, array){
+function insert_item(array){
+	var task = mysql.table.value;
+	
+	var insert_handler = eval(`insert_${task}_item`);
+	var update_handler = eval(`update_${task}_item`);
+	
 	function html_wrapper(html){
 		var training = Math.floor(Math.random() * 2);
 		return `<div>${html}<input type=hidden name=training value='+${training}'></div><br>`
@@ -1069,7 +1075,7 @@ function add_item(handler, array){
 	if (array instanceof Array){		
 		for (let text of array){
 			if (text.length > 0) {
-				html += html_wrapper(handler(text));	
+				html += html_wrapper(insert_handler(text));	
 			}			
 		}		
 	}	
@@ -1083,8 +1089,27 @@ function add_item(handler, array){
 			args.push(element.value);
 		}
 
-		html = html_wrapper(handler.apply(null, args));
+		html = html_wrapper(insert_handler.apply(null, args));
 	}
+	
+	console.log("document.forms.length = " + document.forms.length);	
+	if (document.forms.length == 1){
+		var lang = mysql.lang.value;
+		
+		var form = document.createElement('form');
+		form.name = 'form';
+		form.setAttribute('method', 'post');
+		
+		var submit = document.createElement('input');
+		submit.type = 'submit';			
+		submit.name = `${task}_${lang}_submit`;
+		submit.value = 'submit';
+		form.appendChild(submit);
+		document.body.appendChild(form);			
+	}
+	else{
+		var form = document.forms[1];
+	}		
 	
 	for (let div of form.children) {
 		if (div.nodeName != 'DIV')
@@ -1092,12 +1117,21 @@ function add_item(handler, array){
 		if (div.children[0].type != 'text') 
 			break;
 		update_html(div);
+		
 	}
 
 	form.innerHTML = html + form.innerHTML;
+	
+	for (let div of form.children) {
+		if (div.nodeName != 'DIV')
+			continue;
+		if (div.children[0].type != 'text') 
+			break;
+		update_handler(div);		
+	}	
 }
 
-function add_qatype_item(text, label) {
+function insert_qatype_item(text, label) {
 	console.log('label = ' + label);
 
 	var html = `<input type=text name=text value = '${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
@@ -1106,7 +1140,7 @@ function add_qatype_item(text, label) {
 	return html;
 }
 
-function add_phatics_item(text, label ) {
+function insert_phatics_item(text, label ) {
 	console.log('label = ' + label);
 
 	var html = `<input type=text name=text value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> `;
@@ -1115,11 +1149,29 @@ function add_phatics_item(text, label ) {
 	return html;
 }
 
-function add_keyword_item(text, label) {
+function insert_keyword_item(text, label) {
+	console.log("in function insert_keyword_item(text, label)");
+	
 	if (text.startsWith('{') && text.endsWith('}')){
 		var json = JSON.parse(text); 
 		text = json.text;
 		label = json.label;
+	}
+	
+	if (label == null){
+		console.log("label is null, set it to mysql.label.value");
+		
+		switch(mysql.label.value){
+		case '0':
+			label = 'untechnical';
+			break;
+		case '1':
+			label = 'technical';
+			break;
+		default:
+			label = '';
+			break;
+		}
 	}
 	
 	text = quote_html(text);
@@ -1129,6 +1181,23 @@ function add_keyword_item(text, label) {
 	return html;
 }
  
+function update_keyword_item(div) {
+	var label = div.children[1]; 
+	if (!label.value){
+		console.log("label.value is null: " + label.value);
+		
+		var text = div.children[0].value;
+		var lang = mysql.lang.value;
+		request_post('algorithm/keyword', {lang: lang, text: text}).done(res => {
+			console.log('res = ' + res);
+			label.value = res.label;
+			if (!res.changed){
+				label.nextElementSibling.value = label.nextElementSibling.value.substr(1);
+			}
+		});
+	}
+}	
+
 function onchange_segment_text(self){
 	var seg = self.nextElementSibling.nextElementSibling;
 	var training = seg.nextElementSibling;
@@ -1139,7 +1208,7 @@ function onchange_segment_text(self){
 	});
 }
 
-function add_segment_item(text, seg) {
+function insert_segment_item(text, seg) {
 	console.log("text = " + text);
 	if (text.startsWith('{') && text.endsWith('}')){
 		var json = JSON.parse(text);
@@ -1185,7 +1254,7 @@ function onchange_syntax_text(self){
 	});
 }
 
-function add_syntax_item(text) {
+function insert_syntax_item(text) {
 	console.log("text = " + text);
 	if (text.startsWith('{') && text.endsWith('}')){
 		var json = JSON.parse(text);
@@ -1239,7 +1308,7 @@ function add_syntax_item(text) {
 	return html;
 }
 
-function add_repertoire_item(text, service, slot, code) {
+function insert_repertoire_item(text, service, slot, code) {
 	console.log('text = ' + text);
 	console.log('service = ' + service);
 
@@ -1289,7 +1358,7 @@ function addListener() {
 	});
 }
 
-function handleFiles(self, handler) {
+function handleFiles(self) {
 	var form = self.parentElement.nextElementSibling;
 
 	console.log('function handleFiles() is called!');
@@ -1306,7 +1375,7 @@ function handleFiles(self, handler) {
 		var reader = new FileReader();
 
 		reader.onload = function () {
-			add_item(handler, this.result.split(/[\r\n]+/));
+			insert_item(this.result.split(/[\r\n]+/));
 		};
 
 		reader.readAsText(file);
@@ -1609,29 +1678,29 @@ function update_service_code_selector(self, code) {
 	);
 }
 
-function fill_tbl_keyword() {
-	var children = keyword.children;
-	var table_name = children[children.length - 1].name.replace('_submit', '');
+function fill_tbl_keyword() {	
+	var table_name = form.lastElementChild.name.replace('_submit', '');
 	console.log('table_name = ' + table_name);
 	var lang = table_name.split('_').pop();
 	console.log('lang = ' + lang);
 	
-	var columnSize = 5;
-	for (var j = 1; j < children.length; j += columnSize) {
-		var text = children[j - 1].value;
+	for (var div of form.children) {
+		if (div.tagName != 'DIV')
+			continue;
+		var text = div.children[0].value;
 		console.log('text = ' + text);
-
-		request_post('algorithm/keyword', {lang: lang, text: text}, 'text').done((label =>
-			res =>
-			{
-				console.log('res = ' + res);
-				var y_pred = parseInt(res);
+		var label = div.children[1];
+		request_post('algorithm/keyword', {lang: lang, text: text, predict: true}).done((label =>
+			res => {
+				console.log('res = ');
+				console.log(res);
+				var y_pred = parseInt(res.label);
 				console.log('y_pred = ' + y_pred);
 				if (y_pred != label.value){
 					label.style.color = 'red';						
 				}
 			}			
-		)(children[j]));
+		)(label));
 	}
 }
 
@@ -2021,27 +2090,12 @@ function onsubmit_segment(self){
 }
 
 function onkeyup_input(event){
-	if (event.keyCode === 13) {		
-		console.log("event.keyCode = " + event.keyCode);
+	if (event.keyCode != 13) 
+		return;
+	
+	console.log("in function onkeyup_input(event)");
 // var forms = document.querySelectorAll("form")
-		console.log("document.forms.length = " + document.forms.length);
-		var lang = mysql.lang.value;
-		var task = mysql.table.value;
-		
-		if (document.forms.length == 1){
-			var form = document.createElement('form');
-			form.name = 'form';
-			form.setAttribute('method', 'post');
-			
-			var submit = document.createElement('input');
-			submit.type = 'submit';			
-			submit.name = `${task}_${lang}_submit`;
-			submit.value = 'submit';
-			form.appendChild(submit);
-			document.body.appendChild(form);			
-		}
-		add_item(eval(`add_${task}_item`));
-	}
+	insert_item();	
 }
 
 function onkeydown_segment(self, event){
@@ -2528,7 +2582,7 @@ function split_into_sentences(document) {
 	return texts;
 }
 
-function add_segment_from_solr(text, cache_index){
+function insert_segment_from_solr(text, cache_index){
 	console.log("text = " + text);
 	console.log("cache_index = " + cache_index);
 	
@@ -2617,7 +2671,7 @@ function add_segment_from_solr(text, cache_index){
 	});
 }
 
-function add_segment_en_from_solr(text, cache_index){
+function insert_segment_en_from_solr(text, cache_index){
 	console.log("text = " + text);
 	console.log("cache_index = " + cache_index);
 	
@@ -2678,7 +2732,7 @@ function onmouseout_solrText(self, event){
 	hover.style.display = "none";
 }
 
-function add_solr_item(){	
+function insert_solr_item(){	
 	var submit = $(mysql).find("input[type=submit]")[0];
 	var div = submit.previousElementSibling
 	var _div = div.cloneNode(true);
