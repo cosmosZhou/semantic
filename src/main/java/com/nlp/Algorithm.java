@@ -29,6 +29,7 @@ import com.deeplearning.CWSTagger;
 import com.deeplearning.NERTaggerDict;
 import com.deeplearning.Service;
 import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
+import com.nlp.syntax.SyntacticTree;
 import com.patsnap.core.analysis.manager.CarrotManager;
 import com.patsnap.core.analysis.manager.CarrotManager.ClusteringResult;
 import com.servlet.Python;
@@ -246,6 +247,70 @@ public class Algorithm {
 	public String python(@Context HttpServletRequest request) throws Exception {
 		String script = request.getReader().readLine();
 		return Python.eval(script);
+	}
+
+	@POST
+	@Path("compile")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String compile(@Context HttpServletRequest request) throws Exception {
+		String infix = request.getParameter("infix");
+
+		String segArr = request.getParameter("seg");
+		String seg[] = null;
+		if (segArr != null)
+			seg = Utility.dejsonify(segArr, String[].class);
+
+		String posArr = request.getParameter("pos");
+		String pos[] = null;
+		if (posArr != null)
+			pos = Utility.dejsonify(posArr, String[].class);
+
+		String depArr = request.getParameter("dep");
+		String dep[] = null;
+		if (depArr != null)
+			dep = Utility.dejsonify(depArr, String[].class);
+
+		String headsArr = request.getParameter("heads");
+		int heads[] = null;
+		if (headsArr != null)
+			heads = Utility.dejsonify(headsArr, int[].class);
+
+		SyntacticTree tree;
+		if (heads != null) {
+			tree = com.nlp.syntax.Compiler.compile(infix, pos, heads);
+		} else if (infix == null) {
+			tree = com.nlp.syntax.Compiler.compile(seg, pos);
+		} else if (dep == null) {
+			if (pos == null) {
+				tree = com.nlp.syntax.Compiler.compile(infix);
+			} else {
+				tree = com.nlp.syntax.Compiler.compile(infix, pos);
+			}
+		} else {
+			tree = com.nlp.syntax.Compiler.compile(infix, pos, dep);
+		}
+		boolean projective = tree.projective();
+		
+		String[] args = new String[4];
+		String strTree = tree.toString(null, args);
+		Map<String, String> dict = new HashMap<String, String>();
+		dict.put("infix_simplified", args[0]);
+		dict.put("seg", args[1]);
+		dict.put("pos", args[2]);
+		dict.put("dep", args[3]);
+		dict.put("tree", strTree);
+		dict.put("infix", tree.infixExpression(true, true, projective));
+
+		String text;
+		if (projective) {
+			text = Utility.convertToOriginal(tree.getSEG());
+		} else {
+			text = Utility.convertToOriginal(tree.getSEGNonprojective());
+		}
+		dict.put("text", text);
+
+		return Utility.jsonify(dict);
 	}
 
 	// http://127.0.0.1:8080/nlp/algorithm/java/service/播放下一站下一站传奇城乘风破浪
@@ -479,11 +544,11 @@ public class Algorithm {
 		String lang = request.getParameter("lang");
 		String predict = request.getParameter("predict");
 		if (predict == null) {
-			List<Map<String, Object>> result = MySQL.instance
-					.select_from("select label, training from tbl_keyword_%s where text = '%s'", lang, Utility.quote_mysql(text));
+			List<Map<String, Object>> result = MySQL.instance.select_from(
+					"select label, training from tbl_keyword_%s where text = '%s'", lang, Utility.quote_mysql(text));
 			if (!result.isEmpty()) {
 				return Utility.jsonify(result.get(0));
-			}			
+			}
 		}
 		Map<String, Object> map = new HashMap<String, Object>();
 		map.put("changed", true);
@@ -497,7 +562,7 @@ public class Algorithm {
 		default:
 			return null;
 		}
-		return Utility.jsonify(map); 
+		return Utility.jsonify(map);
 	}
 
 	@POST
@@ -507,10 +572,10 @@ public class Algorithm {
 	public String hyponym(@Context HttpServletRequest request) throws Exception {
 		String text = request.getParameter("text");
 		String reword = request.getParameter("reword");
-		
+
 //		System.out.println("text = " + text);
 //		System.out.println("reword = " + reword);
-		
+
 		switch (request.getParameter("lang")) {
 		case "cn":
 			return Native.hyponymCN(text, reword);
@@ -583,7 +648,7 @@ public class Algorithm {
 			System.out.println("result from cpp: ");
 			System.out.println("head = " + Utility.toString(head));
 			System.out.println("dep = " + String.join(", ", dep));
-			
+
 			for (int i = 0; i < pos.length; i++) {
 				pos[i] = String.format("'%s'", pos[i]);
 				seg[i] = String.format("'%s'", Utility.quote(seg[i]));
@@ -594,7 +659,6 @@ public class Algorithm {
 
 			map = Utility.dejsonify(json, HashMap.class);
 			System.out.println("result from python: " + map);
-
 
 			map.put("training", "+" + new Random().nextInt(2));
 		} else {

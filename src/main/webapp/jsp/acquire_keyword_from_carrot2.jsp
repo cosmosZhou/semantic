@@ -56,7 +56,7 @@
 %>
 
 <br>
-<form name=keyword method=post>
+<form name=form method=post>
 	<%
 		for (String _text : result.list) {
 				List<Map<String, Object>> sqlResult = MySQL.instance
@@ -77,7 +77,7 @@
 				}
 
 				out.print(String.format(
-						"<div style='display:none;color:red;transform:translate(200%%, 0%%);position:absolute;zIndex:999999999999;'>%d documents found!</div>",
+						"<span style='display:none;color:red;transform:translate(200%%, 0%%);position:absolute;zIndex:999999999999;'>%d documents found!</span>",
 						result.map.get(_text).size()));
 
 				String href;
@@ -94,9 +94,9 @@
 					default :
 						href = "javaScript:void(0);";
 				}
-
+				
 				href = String.format(
-						"<a href='%s' onmouseover='onmouseover_solrText(this, event)' onmouseout='onmouseout_solrText(this, event)'>%s</a>",
+						"<a href='%s' onmouseover='onmouseover_solrText(this.parentElement.previousElementSibling, event)' onmouseout='this.parentElement.previousElementSibling.style.display = \"none\"'>%s</a>",
 						href, _text);
 				out.print(Jsp.createKeywordEditor(_text, href, label, rnd.nextInt(2) == 1, changed));
 			}
@@ -105,23 +105,23 @@
 </form>
 
 <script>
-	var children = keyword.children;
-	var columnSize = 7;
-	console.log("children.length = " + children.length);
-	for (var j = 3; j < children.length; j += columnSize) {
-		var label = parseInt(children[j].value);
-		console.log("label = " + label);
-		if (label == 0) {
-			children[j].style.color = 'red';
+	for (let div of form.children) {
+		if (div.nodeName != 'DIV')
+			continue;
+				
+		var label = div.children[1];
+		if (parseInt(label.value) == 0) {
+			label.style.color = 'red';
 		}
 	}
 </script>
 <%
 	} else {
-		out.print("time cost in hyponym_detection (in seconds) = " + result.hyponym_detection_duration + "<br>");
+		out.print(
+				"time cost in hyponym_detection (in seconds) = " + result.hyponym_detection_duration + "<br>");
 		out.print("number of clusters aggregated = " + result.cluster.size() + "<br>");
 %>
-<form name=hyponym method=post>
+<form name=form method=post>
 	<%
 		ArrayList<String> list = new ArrayList<String>(result.cluster.keySet());
 
@@ -169,8 +169,7 @@
 	
 	var lang = '<%=lang%>';
 	
-	console.log("hyponym.children.length = " + hyponym.children.length);
-	for (let div of hyponym.children) { 
+	for (let div of form.children) { 
 		if (div.nodeName != 'DIV')
 			continue;
 		var text = div.children[0].value;

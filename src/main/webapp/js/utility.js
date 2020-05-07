@@ -1248,7 +1248,7 @@ function onchange_syntax_text(self){
 		seg.value = dict['seg'];
 		pos.value = dict['pos'];
 		dep.value = dict['dep'];
-		tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
+		tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
 		infix_simplified.value = dict['infix'];
 		training.value = dict['training'];
 	});
@@ -2132,14 +2132,64 @@ function onchange_segment(self) {
 	changeColor(self, self.nextElementSibling);
 }
 
+function onchange_seg(seg) {
+	var div = seg.parentElement;
+	var text = div.querySelector("input[name=text]");
+	var infix = div.querySelector("input[name=infix]");
+	var infix_simplified = div.querySelector("input[name=infix_simplified]");
+	var pos = div.querySelector("input[name=pos]");
+	var dep = div.querySelector("input[name=dep]");
+	var tree = div.querySelector("p[name=tree]");
+	
+	var segArr = seg.value.trim().split(/\s+/g);
+
+	var arr = matchAll(infix.value, /\(*([^()]+)\)*/g);
+	console.log('matchAll result =');
+	console.log(arr);
+	for (var i = 0; i < arr.length; i++) {
+		arr[i] = arr[i][1].split('/');
+		if (arr[i].length == 4) {
+			arr[i] = parseInt(arr[i][3]);
+		}
+	}
+
+	if (Number.isInteger(arr[0])) {
+		var _segArr = new Array(segArr.length);
+
+		for (var i = 0; i < arr.length; i++) {
+			var j = arr[i];
+			_segArr[j] = segArr[i];
+		}
+		segArr = _segArr;
+	}
+	
+	request_post('algorithm/compile', {seg: JSON.stringify(segArr)}).done(dict => {
+		console.log('dict from Java =');
+		console.log(dict);
+		text.value = dict.text;
+		tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
+		infix.value = dict['infix'];
+
+		infix_simplified.value = dict['infix_simplified'];
+		seg.value = dict['seg'];		
+		pos.value = dict['pos'];
+		dep.value = dict['dep'];
+		
+		var length = Math.max(strlen(dict['infix_simplified']), strlen(dict['seg']), strlen(dict['pos']), strlen(dict['dep']));
+		length = length / 2 + 1;
+		
+		changeInputlength(infix_simplified, true, length);
+		changeInputlength(seg, true, length);
+		changeInputlength(pos, true, length);		
+		changeInputlength(dep, true, length);
+	});	
+	
+	changeColor(seg, seg.parentElement.lastChild);
+}
+
 function modify_structure(self) {
 	for (let element of self.parentElement.children) {
-		var name = element.getAttribute('name');
-		// var name = element.name;
-		switch (name) {
-			case 'infixExpression':
-				var infixExpression = element;
-				break;
+		switch (element.name) {
 			case 'infix_simplified':
 				var infix_simplified = element;
 				break;
@@ -2156,32 +2206,27 @@ function modify_structure(self) {
 				var tree = element;
 				break;
 			case 'infix':
-				var infixExpression = element;
+				var infix = element;
 				break;
 			default:
-				// console.log("element.getAttribute('class') = " +
-				// element.getAttribute('class'));
-				// console.log("element.getAttribute('name') = " +
-				// element.getAttribute('name'));
 				continue;
 		}
 		console.log(element);
 	}
 
 	if (infix_simplified == self) {
-		var infix = infix_simplified.value;
-		var res = modify_infix(infix, infixExpression.value);
+		var res = modify_infix(infix_simplified.value, infix.value);
 		var pos_original = res[0];
 		var index = res[1];
 
-		invoke_python(`compiler.compile('${infix}', ${pos_original}, index=${index}).__str__(return_dict=True)`).done(dict => {
+		request_post('algorithm/compile', {infix : infix_simplified.value, pos: pos_original, index: index}).done(dict => {
 			console.log('dict from python =');
 			console.log(dict);
-			tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
+			tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
 			
-			infixExpression.value = dict['infixExpression'];
+			infix.value = dict['infix'];
 
-			infix_simplified.value = dict['infix'];
+			infix_simplified.value = dict['infix_simplified'];
 			seg.value = dict['seg'];
 
 			pos.value = dict['pos'];
@@ -2195,7 +2240,7 @@ function modify_structure(self) {
 		var segArr = seg.value.trim().split(/\s+/g);
 		var posArr = pos.value.trim().split(/\s+/g);
 
-		var arr = matchAll(infixExpression.value, /\(*([^()]+)\)*/g);
+		var arr = matchAll(infix.value, /\(*([^()]+)\)*/g);
 		console.log('matchAll result =');
 		console.log(arr);
 		for (var i = 0; i < arr.length; i++) {
@@ -2206,8 +2251,8 @@ function modify_structure(self) {
 		}
 
 		if (Number.isInteger(arr[0])) {
-			var _segArr = new Array(segArr.length)
-			var _posArr = new Array(posArr.length)
+			var _segArr = new Array(segArr.length);
+			var _posArr = new Array(posArr.length);
 			for (var i = 0; i < arr.length; i++) {
 				var j = arr[i];
 				_segArr[j] = segArr[i];
@@ -2217,17 +2262,17 @@ function modify_structure(self) {
 			posArr = _posArr;
 		}
 
-		segArr = JSON.stringify(segArr);
-		posArr = JSON.stringify(posArr);
+// segArr = JSON.stringify(segArr);
+// posArr = JSON.stringify(posArr);
 
-		invoke_python(`compiler.parse_from_segment(${segArr}, ${posArr}).__str__(return_dict=True)`).done(dict => {
-			console.log('dict from python =');
+		invoke_python('algorithm/compile', {seg: segArr, pos: posArr}).done(dict => {
+			console.log('dict from Java =');
 			console.log(dict);
-			tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
+			tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
 			
-			infixExpression.value = dict['infixExpression'];
+			infix.value = dict['infix'];
 
-			infix_simplified.value = dict['infix'];
+			infix_simplified.value = dict['infix_simplified'];
 			seg.value = dict['seg'];
 
 			pos.value = dict['pos'];
@@ -2238,39 +2283,12 @@ function modify_structure(self) {
 		});
 	}
 	else if (dep == self) {
-
-		var infix = infixExpression.value;
-		var depArr = dep.value;
-		invoke_python(`compiler.compile('${infix}', dep='${depArr}'.split()).__str__(return_dict=True)`).done(dict => {
+		var depArr = dep.value.trim().split(/[\u2002\s]+/);
+		request_post('algorithm/compile', {infix : infix.value, dep: depArr}).done(dict => {
 			console.log('dict from python =');
 			console.log(dict);
 			
-			infixExpression.value = dict['infixExpression'];
-			dep.value = dict['dep'];
-			changeInputlength(dep, true);
-		});
-
-	}
-	else if (seg == self) {
-
-		var infix = infixExpression.value;
-		var segArr = seg.value;
-		invoke_python(`compiler.parse_from_segment('${segArr}'.split()).__str__(return_dict=True)`).done(dict => {
-			console.log('dict from python =');
-			console.log(dict);
-			tree.innerHTML = dict['tree'].replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
-
-			infixExpression.value = dict['infixExpression'];
-
-			infix_simplified.value = dict['infix'];
-			changeInputlength(infix_simplified, true);
-
-			seg.value = dict['seg'];
-			changeInputlength(seg, true);
-
-			pos.value = dict['pos'];
-			changeInputlength(pos, true);
-
+			infix.value = dict['infix'];
 			dep.value = dict['dep'];
 			changeInputlength(dep, true);
 		});
@@ -2720,15 +2738,13 @@ String.prototype.rtrim = function()
 	return this.replace(/(\s*$)/g, ""); 
 } 
 
-function onmouseover_solrText(self, event){
-	var hover = self.previousElementSibling.previousElementSibling;
+function onmouseover_solrText(hover, event){
 	hover.style.display = "block";
 	hover.style.left = event.pageX || event.clientX + document.body.scroolLeft;
 	hover.style.top = event.pageY || event.clientY + document.body.scrollTop;
 }
 
-function onmouseout_solrText(self, event){
-	var hover = self.previousElementSibling.previousElementSibling;
+function onmouseout_solrText(hover, event){
 	hover.style.display = "none";
 }
 

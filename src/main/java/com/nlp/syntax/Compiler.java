@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 
 import com.nlp.syntax.AnomalyInspecter.Lexeme;
+import com.util.Native;
 import com.util.Utility;
 
 public class Compiler {
@@ -49,7 +50,7 @@ public class Compiler {
 						switch (infix.charAt(i)) {
 						case '(':
 						case ')':
-							//						case ' ':
+							// case ' ':
 							break;
 						default:
 							continue;
@@ -90,7 +91,6 @@ public class Compiler {
 		abstract SyntacticTree toSyntacticTree(SyntacticTree parent) throws Exception;
 
 		abstract AnomalySyntacticTree toAnomalySyntacticTree(AnomalySyntacticTree parent) throws Exception;
-
 
 		List<SyntacticTree> toSyntacticTreeList(SyntacticTree parent) throws Exception {
 			List<SyntacticTree> arr = new ArrayList<SyntacticTree>();
@@ -187,7 +187,7 @@ public class Compiler {
 			String[] tag = lexeme.split("/");
 			String pos = tag.length > 1 ? tag[1].trim() : null;
 			String dep = tag.length > 2 ? tag[2].trim() : null;
-	        int index =  tag.length > 3 ? Integer.parseInt(tag[3].trim()) : -1;
+			int index = tag.length > 3 ? Integer.parseInt(tag[3].trim()) : -1;
 			return new SyntacticTree(index, tag[0].trim(), pos, dep, parent);
 		}
 
@@ -574,9 +574,33 @@ public class Compiler {
 
 		SyntacticTree dtree = caret.toSyntacticTree(null);
 		dtree.validateSize();
-		dtree.validateIndex();
+
+		if (dtree.id < 0)
+			dtree.validateIndex();
+
 		dtree.setDEP(dep);
 		dtree.setPOS(pos);
+
+		return dtree;
+	}
+
+	static public SyntacticTree compile(String infix, String[] pos, int[] heads) throws Exception {
+		HNode caret = HNode.compile(infix);
+
+		SyntacticTree dtree = caret.toSyntacticTree(null);
+		dtree.validateSize();
+
+		if (dtree.id < 0)
+			dtree.validateIndex(heads);
+
+		String[] _pos = pos.clone();
+		int index = 0;
+		for (int i : heads) {
+			_pos[index++] = pos[i];
+		}
+
+		dtree.setPOS(_pos);
+
 		return dtree;
 	}
 
@@ -585,11 +609,23 @@ public class Compiler {
 
 		SyntacticTree dtree = caret.toSyntacticTree(null);
 		dtree.validateSize();
-		
-	    if (dtree.id < 0)
-	        dtree.validateIndex();
+
+		if (dtree.id < 0)
+			dtree.validateIndex();
 
 		return dtree;
+	}
+
+	public static SyntacticTree compile(String[] seg, String[] pos) throws Exception {
+		if (pos == null) {
+			pos = Native.posCN(seg);
+		} else {
+			pos = Utility.toUpperCase(pos);
+		}
+
+		String dep[] = new String[seg.length];
+		int heads[] = Native.depCN(seg, pos, dep);
+		return SyntacticTree.parse(seg, pos, dep, heads);
 	}
 
 	public static void main(String[] args) throws Exception {

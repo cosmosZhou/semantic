@@ -80,24 +80,27 @@ public class Jsp {
 		String pos = args[2];
 		String dep = args[3];
 
+		int length = Utility.max(Utility.strlen(infix_simplified), Utility.strlen(seg), Utility.strlen(pos),
+				Utility.strlen(dep));
+		length = length / 2 + 1;
+		
 		String lines[] = { String.format("<input type=hidden name=text value='%s'>%s", text, text),
 				String.format("<input type=hidden name=infix value='%s'>", Utility.quote_html(infix)),
 				String.format("<p class=monospace-p name=tree>%s</p>",
 						tree.replaceAll(" ", "&ensp;").replaceAll("\\n", "<br>")),
 				String.format(
 						"<input type=text name=infix_simplified style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
-						String.format("width:%dem;", (Utility.strlen(infix_simplified) / 2 + 1)),
+						String.format("width:%dem;", length),
 						Utility.quote_html(infix_simplified).replaceAll(" ", "&ensp;")),
 				String.format(
-						"<input type=text name=seg style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
-						String.format("width:%dem;", (Utility.strlen(seg) / 2 + 1)),
-						Utility.quote_html(seg).replaceAll(" ", "&ensp;")),
+						"<input type=text name=seg style='%s' class=monospace value='%s' onchange='onchange_seg(this)'><br>",
+						String.format("width:%dem;", length), Utility.quote_html(seg).replaceAll(" ", "&ensp;")),
 				String.format(
 						"<input type=text name=pos style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
-						String.format("width:%dem;", (Utility.strlen(pos) / 2 + 1)), pos.replaceAll(" ", "&ensp;")),
+						String.format("width:%dem;", length), pos.replaceAll(" ", "&ensp;")),
 				String.format(
 						"<input type=text name=dep style='%s' class=monospace value='%s' onchange='modify_structure(this)'>",
-						String.format("width:%dem;", (Utility.strlen(dep) / 2 + 1)), dep.replaceAll(" ", "&ensp;")) };
+						String.format("width:%dem;", length), dep.replaceAll(" ", "&ensp;")) };
 
 		return lines;
 	}

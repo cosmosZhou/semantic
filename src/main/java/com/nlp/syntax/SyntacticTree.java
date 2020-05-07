@@ -320,6 +320,16 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 		Seg, Pos, Dep, Lex
 	}
 
+	public String[] getSEGNonprojective() {
+		String[] _seg = new String[this.size];
+		String[] seg = getSEG();
+		int index = 0;
+		for (int i : this.getNonprojectiveMapping()) {
+			_seg[index++] = seg[i];
+		}
+		return _seg;
+	}
+
 	public String[] getSEG() {
 		ArrayList<String> arr = new ArrayList<String>();
 		getTag(arr, TAG.Seg);
@@ -596,9 +606,9 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 		SyntacticTree parent = this.parent;
 		this.parent = null;
 		try {
+			String[] seg = getLEX();
 			String[] pos = getPOS();
 			String[] dep = getDEP();
-			String[] seg = getLEX();
 
 			int size = seg.length;
 			if (size != pos.length || size != dep.length) {
@@ -690,7 +700,7 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 			args[i++] = segString;
 			args[i++] = posString;
 			args[i++] = depString;
-			
+
 			if (markString != null)
 				args[i++] = markString;
 
@@ -816,24 +826,49 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 		return infixExpression(true, false);
 	}
 
+	int[] getNonprojectiveMapping() {
+		int[] mapping = new int[this.size];
+		int index = 0;
+		for (SyntacticTree t : this) {
+			mapping[t.id] = index++;
+		}
+		return mapping;
+	}
+
+	public boolean projective() {
+		int index = 0;
+		for (SyntacticTree t : this) {
+			if (t.id != index)
+				return false;
+			++index;
+		}
+		return true;
+	}
+
 	public String infixExpression(boolean bLex) {
 		return infixExpression(bLex, true);
 	}
 
-	public String infixExpression(boolean bLex, boolean bPos) {
+	public String infixExpression(boolean bLex, boolean bPos, boolean projective) {
 		StringBuilder infix = new StringBuilder();
 		for (SyntacticTree tree : this.leftChildren) {
-			infix.append("(" + tree.infixExpression(bLex, bPos) + ")");
+			infix.append("(" + tree.infixExpression(bLex, bPos, projective) + ")");
 		}
 		String lexeme = bLex ? protectParenthesis(lex) : seg;
 		if (bPos)
 			lexeme += "/" + pos + "/" + dep;
+		if (!projective)
+			lexeme += "/" + this.id;
 
 		infix.append(lexeme);
 		for (SyntacticTree tree : this.rightChildren) {
-			infix.append("(" + tree.infixExpression(bLex, bPos) + ")");
+			infix.append("(" + tree.infixExpression(bLex, bPos, projective) + ")");
 		}
 		return infix.toString();
+	}
+
+	public String infixExpression(boolean bLex, boolean bPos) {
+		return infixExpression(bLex, bPos, false);
 	}
 
 	public String unadornedExpression() {
@@ -946,6 +981,8 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 		}
 
 		tree[rootIndex].validateSize();
+
+		assert tree[rootIndex].size == length;
 		return tree[rootIndex];
 	}
 
@@ -1333,6 +1370,20 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 		for (SyntacticTree tree : this) {
 			tree.id = index++;
 		}
+		if (index != this.size) {
+			log.info("size = " + size);
+			log.info("index = " + index);
+			throw new RuntimeException("index != this.size");
+		}
+		return this;
+	}
+
+	public SyntacticTree validateIndex(int heads[]) {
+		int index = 0;
+		for (SyntacticTree tree : this) {
+			tree.id = heads[index++];
+		}
+
 		if (index != this.size) {
 			log.info("size = " + size);
 			log.info("index = " + index);
