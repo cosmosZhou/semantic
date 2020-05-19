@@ -33,6 +33,7 @@ import com.patsnap.core.analysis.bo.CarrotClusterBo;
 import com.patsnap.core.analysis.bo.CarrotPatentInputBo;
 import com.patsnap.core.analysis.bo.CarrotPhraseBo;
 import com.util.HttpClient;
+import com.util.MongoDB;
 import com.util.MySQL;
 import com.util.Native;
 import com.util.Utility;
@@ -44,7 +45,6 @@ import com.util.Utility.Timer;
  * @author zhangyan on 2019/11/13
  */
 public class CarrotManager {
-
 	private static final Logger log = LoggerFactory.getLogger(CarrotManager.class);
 
 	private static final int MAX_DOCUMENT_COUNT = 10000;
@@ -323,16 +323,16 @@ public class CarrotManager {
 	public static class ClusteringResult {
 		ClusteringResult(String[] list, Map<String, List<String>> map, Map<String, List<String>> cluster,
 				int numFromSolr, double solr_duration, double clustering_duration, double postprocessing_duration,
-				double hyponym_detection_duration) {
+				double lexicon_detection_duration) {
 			this.list = list;
 			this.cluster = cluster;
-			
+
 			this.map = map;
 			this.numFromSolr = numFromSolr;
 			this.solr_duration = solr_duration;
 			this.clustering_duration = clustering_duration;
 			this.postprocessing_duration = postprocessing_duration;
-			this.hyponym_detection_duration = hyponym_detection_duration;
+			this.hyponym_detection_duration = lexicon_detection_duration;
 			for (int i = 0; i < cache.length; i++) {
 				if (cache[i] == null) {
 					cache[i] = map;
@@ -359,11 +359,11 @@ public class CarrotManager {
 		public static Map<String, List<String>>[] cache = new HashMap[128];
 	}
 
-	public ClusteringResult getClusteringResult(String language, String text, int rows)
+	public ClusteringResult getClusteringResult(String lang, String text, int rows)
 			throws IOException, SolrServerException {
 //		System.out.println("calling public ClusteringResult getClusteringResult(String language, String text, int rows)!");
 		Timer timer = new Utility.Timer();
-		List<? extends Map<String, Object>> patentDataMap = HttpClient.solr_with_keyword(language, text, rows);
+		List<? extends Map<String, Object>> patentDataMap = HttpClient.solr_with_keyword(lang, text, rows);
 		double solr_duration = timer.report("HttpClient.solr_with_keyword(language, text, rows)");
 
 		int numFromSolr = patentDataMap.size();
@@ -374,11 +374,9 @@ public class CarrotManager {
 		if (patentDataMap.isEmpty())
 			return new ClusteringResult(new String[0], map, cluster, numFromSolr, solr_duration, 0, 0, 0);
 
-		language = language.toLowerCase();
-		if (language.equals("cn"))
-			language = "zh_cn";
-
-		LanguageCode languageCode = LanguageCode.forISOCode(language);
+//		lang = lang.toLowerCase();
+		
+		LanguageCode languageCode = LanguageCode.forISOCode(lang.equals("cn") ? "zh_cn" : lang);
 		List<CarrotClusterBo> carrotResult = instance.clusterPatentsToWordClouds(languageCode, patentDataMap);
 
 		for (CarrotClusterBo c : carrotResult) {
@@ -387,7 +385,6 @@ public class CarrotManager {
 				map.put(phrase.key, c.documentIds);
 			}
 		}
-//		log.info("finishing analyzing keyword: " + text);
 
 		double clustering_duration = timer.report("clusterPatentsToWordClouds");
 
@@ -430,12 +427,17 @@ public class CarrotManager {
 		}
 
 		String array[] = Utility.toArray(listPhrases);
-		int frequency[] = new int [array.length];
+		int frequency[] = new int[array.length];
 		for (int i = 0; i < frequency.length; i++) {
-			frequency[i] = map.get(array[i]).size();			
+			frequency[i] = map.get(array[i]).size();
 		}
+
+		double[][] embedding = new double[array.length][];
 		
-		int[] heads = Native.hyponymStructureCN(array, frequency);
+		Thread thread = MongoDB.instance.acquireWordEmbedding(lang, array, embedding);		
+
+		int[] heads = Native.lexiconStructureWithEmbeddingCN(embedding, frequency);
+
 		for (int child = 0; child < heads.length; ++child) {
 			int parent = heads[child];
 			if (parent < 0) {
@@ -448,9 +450,14 @@ public class CarrotManager {
 			cluster.get(incenter).add(childPhrase);
 		}
 
-		double hyponym_detection_duration = timer.report("hyponym_detection_duration");
-		return new ClusteringResult(array, map, cluster, numFromSolr, solr_duration, clustering_duration,
-				postprocessing_duration, hyponym_detection_duration);
+		double lexicon_detection_duration = timer.report("lexicon_detection_duration");
+		log.info("finishing analyzing keyword: " + text);
+
+		ClusteringResult result = new ClusteringResult(array, map, cluster, numFromSolr, solr_duration,
+				clustering_duration, postprocessing_duration, lexicon_detection_duration);
+		if (thread != null)
+			thread.start();
+		return result;
 	}
 
 	public List<String> getClusteringResult(LanguageCode language, List<Map<String, Object>> patentDataMap)

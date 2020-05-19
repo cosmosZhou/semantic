@@ -89,7 +89,7 @@ public class Jsp {
 				String.format("<p class=monospace-p name=tree>%s</p>",
 						tree.replaceAll(" ", "&ensp;").replaceAll("\\n", "<br>")),
 				String.format(
-						"<input type=text name=infix_simplified style='%s' class=monospace value='%s' onchange='modify_structure(this)'><br>",
+						"<input type=text name=infix_simplified style='%s' class=monospace value='%s' onchange='onchange_infix(this)'><br>",
 						String.format("width:%dem;", length),
 						Utility.quote_html(infix_simplified).replaceAll(" ", "&ensp;")),
 				String.format(
@@ -183,7 +183,7 @@ public class Jsp {
 
 	public static String[] createLexiconEditor(String x, String y, String label) {
 		String lines[] = { String.format("<input type=hidden name=text value='%s'>", Utility.quote_html(x)),
-				String.format("<input type=hidden name=reword value='%s'>", Utility.quote_html(y)),
+				String.format("<input type=hidden name=derivant value='%s'>", Utility.quote_html(y)),
 				String.format("%s / %s = ", Utility.str_html(x), Utility.str_html(y)),
 				Jsp.createLexiconSelector(label) };
 
@@ -267,9 +267,9 @@ public class Jsp {
 		String conditions[] = { "name='%s'", "onchange='%s'", "style='text-align:center;'%s'", "onfocus='%s'",
 				"class='%s'" };
 
-		String format = "<select ";
+		String format = "<select";
 		for (int i = 0; i < args.length; i++) {
-			format += conditions[i];
+			format += " " + conditions[i];
 		}
 		format += ">";
 
@@ -300,9 +300,9 @@ public class Jsp {
 		String conditions[] = { "name='%s'", "onchange='%s'", "style='text-align:center;'%s'", "onfocus='%s'",
 				"class='%s'" };
 
-		String format = "<select ";
+		String format = "<select";
 		for (int i = 0; i < args.length; i++) {
-			format += conditions[i];
+			format += " " + conditions[i];
 		}
 		format += ">";
 
@@ -334,9 +334,9 @@ public class Jsp {
 		String conditions[] = { "name='%s'", "onchange='%s'", "style='text-align:center;%s'", "onfocus='%s'",
 				"class='%s'" };
 
-		String format = "<select ";
+		String format = "<select";
 		for (int i = 0; i < args.length; i++) {
-			format += conditions[i];
+			format += " " + conditions[i];
 		}
 		format += ">";
 

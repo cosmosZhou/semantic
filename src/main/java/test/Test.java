@@ -10,6 +10,7 @@ import java.util.TreeSet;
 import org.jblas.DoubleMatrix;
 
 import com.servlet.Python;
+import com.util.MongoDB;
 import com.util.MySQL;
 import com.util.Native;
 import com.util.Utility;
@@ -46,6 +47,40 @@ public class Test {
 				System.out.println("resFromPython = " + resFromPython);
 				err += 1;
 			}
+		}
+
+		System.out.println("err = " + err);
+		System.out.println("sum = " + sum);
+		System.out.println("acc = " + ((sum - err) * 1.0 / sum));
+	}
+
+	public static void test_token2id() throws Exception {
+		int err = 0;
+		int sum = 0;
+		for (Map<String, Object> dict : MySQL.instance.select("select text from tbl_toChinese_en limit 10000")) {
+			++sum;
+			String text = (String) dict.get("text");
+//			String seg = (String) dict.get("seg");
+
+			int[] resFromCpp = Native.token2idEN(text);
+
+			try {
+				int[] resFromPython = Utility
+						.dejsonify(Python.eval(String.format("token2id('%s')", Utility.quote(text))), int[].class);
+
+				if (!Utility.equals(resFromCpp, resFromPython)) {
+					System.out.println("text = " + text);
+					System.out.println("resFromCpp    = " + Utility.toString(resFromCpp, ", ", "[]", 100));
+					System.out.println("resFromPython = " + Utility.toString(resFromPython, ", ", "[]", 100));
+					err += 1;
+				}
+			} catch (Exception e) {
+				err += 1;
+				e.printStackTrace();
+				System.out.println(e);
+				System.out.println("text = " + text);
+			}
+
 		}
 
 		System.out.println("err = " + err);
@@ -90,30 +125,40 @@ public class Test {
 		System.out.println("acc = " + ((sum - err) * 1.0 / sum));
 	}
 
-	public static void test_hyponym_cn() throws Exception {
+	public static void test_lexicon(String lang) throws Exception {
 		int err = 0;
 		int sum = 0;
 		for (int cnt = 0; cnt < 100; ++cnt) {
 			List<Map<String, Object>> list = MySQL.instance
-					.select("select* from tbl_lexicon_cn order by rand() limit 4");
+					.select_from("select* from tbl_lexicon_%s order by rand() limit 5", lang);
 
 			String[] array = new String[list.size()];
 			for (int i = 0; i < array.length; i++) {
 				array[i] = (String) list.get(i).get("text");
 			}
 			++sum;
-			DoubleMatrix resFromCpp = new DoubleMatrix(Native.hyponymCNs(array));
+
+			System.out.println("array = " + String.join(", ", array));
+			double[][] embedding = new double[array.length][];
+
+			MongoDB.instance.acquireWordEmbedding(lang, array, embedding).run();
+
+			DoubleMatrix resFromCpp = new DoubleMatrix(
+					Native.lexiconMutualScoreWithEmbedding(lang.equals("cn") ? 1 : 0, embedding));
+//			DoubleMatrix resFromCpp = new DoubleMatrix(Native.lexiconMutualScoreCNs(array));
 
 			String text[] = array.clone();
 			for (int i = 0; i < array.length; i++) {
 				text[i] = String.format("'%s'", Utility.quote(text[i]));
 			}
 
-			DoubleMatrix resFromPython = new DoubleMatrix(Utility.dejsonify(
-					Python.eval(String.format("hyponyms('cn', [%s])", String.join(",", text))), double[][].class));
+			DoubleMatrix resFromPython = new DoubleMatrix(
+					Utility.dejsonify(Python.eval(String.format("lexicons('%s', [%s])", lang, String.join(",", text))),
+							double[][].class));
 
 			double max = Utility.absi(resFromCpp.sub(resFromPython)).max();
-			if (max > 0.01) {
+			if (max > 0.0001) {
+				System.out.println("max = " + max);
 				System.out.println("text = " + String.join(",", text));
 				System.out.println("resFromCpp    = " + resFromCpp);
 				System.out.println("resFromPython = " + resFromPython);
@@ -184,10 +229,11 @@ public class Test {
 	}
 
 	public static void main(String[] args) throws Exception {
-		test_cws();
-		test_pos();
-		test_hyponym_cn();
-		test_keyword_cn();
+//		test_token2id();
+//		test_cws();
+//		test_pos();
+		test_lexicon("en");
+//		test_keyword_cn();
 		test_keyword_en();
 	}
 }

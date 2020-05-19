@@ -2,6 +2,8 @@ package com.nlp.syntax;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
@@ -19,6 +21,7 @@ public class Compiler {
 			for (int i = 0; i < infix.length();) {
 				switch (infix.charAt(i)) {
 				case ' ':
+				case ' ':
 				case '\t':
 					break;
 				case '(':
@@ -45,20 +48,14 @@ public class Compiler {
 
 					break;
 				default:
-					int beg = i;
-					for (; i < infix.length(); ++i) {
-						switch (infix.charAt(i)) {
-						case '(':
-						case ')':
-							// case ' ':
-							break;
-						default:
-							continue;
-						}
-						break;
-					}
 
-					caret = caret.append_lexeme(infix.substring(beg, i));
+					Matcher m = Pattern.compile("([^()]+)(?<=\\S)\\s*", Pattern.UNICODE_CHARACTER_CLASS)
+							.matcher(new Utility.SubString(infix, i));
+					if (!m.find())
+						throw new Exception("lexeme not found!");
+					i += m.end();
+					caret = caret.append_lexeme(m.group(1));
+
 					continue;
 				}
 				++i;
@@ -629,6 +626,16 @@ public class Compiler {
 	}
 
 	public static void main(String[] args) throws Exception {
+//		String infix = "-     ((1)     价))    的)     Cl)和   ((((4)     价)     的)      C))  组成)     的) 化合物)     的)(化学式)     是   (什么)";
+		String infix = "-------((1)     价))    的)     Cl)和   ((((4)     价)     的)      C))  组成)     的) 化合物)     的)(化学式)     是   (什么)";
+		Matcher m = Pattern.compile("([^()]+)(?<=\\S)\\s*", Pattern.UNICODE_CHARACTER_CLASS)
+				.matcher(infix);
+		if (!m.find())
+			throw new Exception("lexeme not found!");
+		int end = m.end();
+		String lexeme = m.group(1);
+		System.out.println("end = " + end);
+		System.out.println("lexeme = " + lexeme + ";");
 	}
 
 	private static Logger log = Logger.getLogger(Compiler.class);

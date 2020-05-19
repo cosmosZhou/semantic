@@ -6,10 +6,14 @@ import org.ahocorasick.trie.Trie;
 
 //javah -jni com.util.Native
 public class Native {
+	static public native long[] double2long(double jdoubleArray[]);
+
+	static public native double[] long2double(long jlongArray[]);
+	
 	public native static void reinitializeLexiconCN();
-	
+
 	public native static void reinitializeLexiconEN();
-	
+
 	public native static void reinitializeSyntaxParser();
 
 	public native static void reinitializeCWSTagger();
@@ -20,13 +24,25 @@ public class Native {
 
 	public native static void reinitializeKeywordEN();
 
-	public native static int[] hyponymStructureCN(String[] keywords, int frequency[]);
+	public native static int[] token2idEN(String text);
 
-	public native static String hyponymCN(String hypernym, String hyponym);
+	public native static int[] lexiconStructureWithEmbeddingCN(double[][] embedding, int frequency[]);
 
-	public native static double[][] hyponymCNs(String text[]);
+	public native static int[] lexiconStructureCN(String[] keywords, int frequency[]);
 
-	public native static String hyponymEN(String hypernym, String hyponym);
+	public native static double[][] lexiconEmbeddingCN(String[] keywords);
+	
+	public native static double[][] lexiconEmbeddingEN(String[] keywords);
+
+	public native static String lexiconCN(String hypernym, String lexicon);
+
+	public native static double[][] lexiconMutualScoreWithEmbedding(int lang, double[][] embedding);
+	
+	public native static double[][] lexiconMutualScoreCNs(String text[]);
+	
+	public native static double[][] lexiconMutualScoreENs(String text[]);
+
+	public native static String lexiconEN(String hypernym, String lexicon);
 
 	public native static int[] depCN(String[] seg, String[] pos, String[] dep);
 

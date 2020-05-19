@@ -146,7 +146,7 @@
 					}
 
 					List<Map<String, Object>> sqlResult = MySQL.instance.select_from(
-							"select label from tbl_lexicon_%s where text = '%s' and reword = '%s'", lang, x, y);
+							"select label from tbl_lexicon_%s where text = '%s' and derivant = '%s'", lang, x, y);
 
 					boolean changed;
 					String label = "";
@@ -173,20 +173,25 @@
 		if (div.nodeName != 'DIV')
 			continue;
 		var text = div.children[0].value;
-		var reword = div.children[1].value;
+		var derivant = div.children[1].value;
 		var label = div.children[2];
 		
 		if (div.lastChild.value.startsWith('+')){
-			request_post('algorithm/hyponym', {lang: lang, text: text, reword: reword}, 'text').done((label=>
+			request_post('algorithm/lexicon', {lang: lang, text: text, derivant: derivant}).done((label=>
 			res=> {
-				label.value = res;
-				console.log("res from Java = " + res);
+				label.value = res.label;
+				console.log("res from Java = ");
+				console.log(res);
+				if (!res.changed){
+					label.nextElementSibling.value = label.nextElementSibling.value.substr(1);
+				}
 			})(label));			
 		}
 		else{
-			request_post('algorithm/hyponym', {lang: lang, text: text, reword: reword}, 'text').done((label=>
+			request_post('algorithm/lexicon', {lang: lang, text: text, derivant: derivant}).done((label=>
 			res=> {
-				console.log("res from Java = " + res);
+				console.log("res from Java = ");
+				console.log(res);
 				if (res != label.value){
 					label.style.color = 'red';
 				}

@@ -868,7 +868,7 @@ public class SyntacticTree implements Serializable, Iterable<SyntacticTree> {
 	}
 
 	public String infixExpression(boolean bLex, boolean bPos) {
-		return infixExpression(bLex, bPos, false);
+		return infixExpression(bLex, bPos, true);
 	}
 
 	public String unadornedExpression() {

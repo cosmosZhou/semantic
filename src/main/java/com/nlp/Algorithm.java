@@ -291,7 +291,7 @@ public class Algorithm {
 			tree = com.nlp.syntax.Compiler.compile(infix, pos, dep);
 		}
 		boolean projective = tree.projective();
-		
+
 		String[] args = new String[4];
 		String strTree = tree.toString(null, args);
 		Map<String, String> dict = new HashMap<String, String>();
@@ -566,24 +566,38 @@ public class Algorithm {
 	}
 
 	@POST
-	@Path("hyponym")
+	@Path("lexicon")
 	@Consumes("application/x-www-form-urlencoded")
 	@Produces("text/plain;charset=utf-8")
-	public String hyponym(@Context HttpServletRequest request) throws Exception {
+	public String lexicon(@Context HttpServletRequest request) throws Exception {
+		String lang = request.getParameter("lang");
 		String text = request.getParameter("text");
-		String reword = request.getParameter("reword");
+		String derivant = request.getParameter("derivant");
 
-//		System.out.println("text = " + text);
-//		System.out.println("reword = " + reword);
+		String predict = request.getParameter("predict");
+		if (predict == null) {
+			List<Map<String, Object>> result = MySQL.instance.select_from(
+					"select label, training from tbl_lexicon_%s where text = '%s'", lang, Utility.quote_mysql(text),
+					Utility.quote_mysql(derivant));
+			if (!result.isEmpty()) {
+				return Utility.jsonify(result.get(0));
+			}
+		}
+
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("changed", true);
 
 		switch (request.getParameter("lang")) {
 		case "cn":
-			return Native.hyponymCN(text, reword);
+			map.put("label", Native.lexiconCN(text, derivant));
+			break;
 		case "en":
-			return Native.hyponymEN(text, reword);
+			map.put("label", Native.lexiconEN(text, derivant));
+			break;
 		default:
 			return null;
 		}
+		return Utility.jsonify(map);
 	}
 
 	@POST
@@ -695,5 +709,31 @@ public class Algorithm {
 			throws NoSectionException, NoOptionException, InterpolationException, IOException, InterruptedException {
 		Python.training(table);
 		return "true";
+	}
+
+	@GET
+	@Path("solr/select")
+	@Produces("text/plain;charset=utf-8")
+	public String solr_select_get(@Context HttpServletRequest request) throws SolrServerException, IOException {
+		return solr_select(request);
+	}
+
+	@POST
+	@Path("solr/select")
+	@Consumes("application/x-www-form-urlencoded")
+	@Produces("text/plain;charset=utf-8")
+	public String solr_select(@Context HttpServletRequest request) throws IOException, SolrServerException {
+		String q = request.getParameter("q");
+		System.out.println("q = " + q);
+		String fl = request.getParameter("fl");
+		System.out.println("fl = " + fl);
+		String rows_str = request.getParameter("rows");		
+		int rows = 10000;
+		if (rows_str != null) {
+			rows = Integer.parseInt(rows_str);
+		}
+		System.out.println("rows = " + rows);
+		
+		return Utility.jsonify(HttpClient.solr(q, fl, rows));
 	}
 }

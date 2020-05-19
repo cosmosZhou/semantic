@@ -5,7 +5,7 @@
 <%
 	String lang = (String) request.getAttribute("lang");
 	out.print(Jsp.join(MySQL.instance.insert("tbl_lexicon_" + lang, request.getParameterValues("text"),
-			request.getParameterValues("reword"), request.getParameterValues("label"),
+			request.getParameterValues("derivant"), request.getParameterValues("label"),
 			request.getParameterValues("training"))));
 
 	out.print(Jsp.javaScript("onchange_table('lexicon', '%s')", lang));

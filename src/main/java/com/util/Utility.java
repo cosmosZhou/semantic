@@ -47,7 +47,6 @@ import org.apache.log4j.Logger;
 import org.jblas.DoubleMatrix;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Utility {
 	public static void main(String[] args) throws Exception {
@@ -884,9 +883,13 @@ public class Utility {
 		return new DoubleMatrix(1, x.rows, arr);
 	}
 
+	static class ObjectMapper {
+		static com.fasterxml.jackson.databind.ObjectMapper instance = new com.fasterxml.jackson.databind.ObjectMapper();
+	}
+
 	static public String jsonify(Object object) {
 		try {
-			return new ObjectMapper().writeValueAsString(object);
+			return ObjectMapper.instance.writeValueAsString(object);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -896,7 +899,7 @@ public class Utility {
 
 	static public <T> T dejsonify(String json, Class<T> valueType) {
 		try {
-			return new ObjectMapper().readValue(json, valueType);
+			return ObjectMapper.instance.readValue(json, valueType);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1577,11 +1580,11 @@ public class Utility {
 		public String toString() {
 			return toString(max_width(), false);
 		}
-		
+
 		public String toString(int max_width) {
 			return toString(max_width, false);
 		}
-		
+
 		public String toString(int max_width, boolean shrink) {
 			StringBuffer cout = new StringBuffer();
 			int currLevel = 0;
@@ -2540,5 +2543,50 @@ public class Utility {
 	public static BufferedReader readFromStdin() {
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		return br;
+	}
+
+	public static String trim(String s) {
+		Matcher m = Pattern.compile("\\s*(\\S+)\\s*", Pattern.UNICODE_CHARACTER_CLASS).matcher(s);
+		if (m.find())
+			return m.group(1);
+		return "";
+	}
+
+	public static class SubString implements CharSequence {
+		public SubString(String text, int begin) {
+			this.text = text;
+			this.begin = begin;
+			this.end = text.length();
+		}
+
+		public SubString(String text, int begin, int end) {
+			this.text = text;
+			this.begin = begin;
+			this.end = end;
+		}
+
+		String text;
+		int begin;
+		int end;
+
+		@Override
+		public int length() {
+			return end - begin;
+		}
+
+		@Override
+		public char charAt(int index) {
+			return text.charAt(index + begin);
+		}
+
+		@Override
+		public CharSequence subSequence(int start, int end) {
+			return new SubString(text, start + begin, end + begin);
+		}
+
+		@Override
+		public String toString() {
+			return text.substring(begin, end);
+		}
 	}
 }

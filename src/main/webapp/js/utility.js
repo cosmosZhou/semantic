@@ -656,7 +656,7 @@ function onchange_table(tablename, lang) {
 			var labelSelector = generateSelector(['hypernym','hyponym', 'synonym', 'antonym', 'related', 'unrelated'], '', 'label', '');
 			var switcher = generateEqualitySelector('label');
 			div.innerHTML = tableSelector('lexicon', lang, 'text')
-				+ 'and ' + like_statement('reword')
+				+ 'and ' + like_statement('derivant')
 				+ `and label ${switcher}${labelSelector}`
 				+ training_check() + rand_check(false) + limit_check(40, 1000);
 			break;
@@ -1034,14 +1034,41 @@ function insert_semantic_item(text, context, category) {
 	return html;
 }
 
-function insert_lexicon_item(text, reword, label) {	
+function update_lexicon_item(div) {
+	console.log('in function update_lexicon_item(div)');
+	var label = div.children[2];
+	console.log("label.value is " + label.value);
+	if (label.value)
+		return;
+	
+	var text = div.children[0].value;
+	var derivant = div.children[1].value;
+	var lang = mysql.lang.value;
+	request_post('algorithm/lexicon', {lang: lang, text: text, derivant: derivant}).done(res => {
+		console.log('res = ' + res);
+		label.value = res.label;
+		if (!res.changed){
+			label.nextElementSibling.value = label.nextElementSibling.value.substr(1);
+		}
+	});
+	
+}
+
+function insert_lexicon_item(text, derivant, label) {	
 	console.log('text = ' + text);
-	console.log('reword = ' + reword);
+	if (text.indexOf('\t') >= 0) {
+		var args = text.split(/\t/);
+		text = args[0];
+		derivant = args[1];
+		label = args[2];
+	}
+	
+	console.log('derivant = ' + derivant);
 	console.log('label = ' + label);
-	if (text > reword){
+	if (text.toLowerCase() > derivant.toLowerCase()){
 		var tmp = text;
-		text = reword;
-		reword = tmp;
+		text = derivant;
+		derivant = tmp;
 		switch(label){
 		case 'hyponym':
 			label = 'hypernym';
@@ -1054,7 +1081,7 @@ function insert_lexicon_item(text, reword, label) {
 	
 	var html = `<input type=text name=text value='${text}' onchange='changeColor(this, this.parentElement.lastElementChild)'> / `;
 
-	html += `<input type=text name=reword value='${reword}' onchange='changeColor(this, this.parentElement.lastElementChild)'> = `;
+	html += `<input type=text name=derivant value='${derivant}' onchange='changeColor(this, this.parentElement.lastElementChild)'> = `;
 	
 	html += generateSelector(["hypernym", "hyponym", "synonym", "antonym", "related", "unrelated"], label, 'label', 'changeColor(this, this.nextElementSibling)');
 	return html;
@@ -1122,11 +1149,13 @@ function insert_item(array){
 
 	form.innerHTML = html + form.innerHTML;
 	
+	console.log('form.innerHTML = html + form.innerHTML;');
 	for (let div of form.children) {
 		if (div.nodeName != 'DIV')
 			continue;
 		if (div.children[0].type != 'text') 
 			break;
+		console.log('update_handler(div);');
 		update_handler(div);		
 	}	
 }
@@ -1245,11 +1274,11 @@ function onchange_syntax_text(self){
 	request_post('algorithm/syntax', self.value).done(dict =>{
 		console.log("result from java:");
 		console.log(dict);
-		seg.value = dict['seg'];
-		pos.value = dict['pos'];
-		dep.value = dict['dep'];
+		seg.value = dict.seg;
+		pos.value = dict.pos;
+		dep.value = dict.dep;
 		tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
-		infix_simplified.value = dict['infix'];
+		infix_simplified.value = dict.infix;
 		training.value = dict['training'];
 	});
 }
@@ -2028,13 +2057,23 @@ function parse_for_original_segment(infix) {
 	return [word, pos, dep]
 }
 
-function modify_infix(infix, infixExpression) {
-	var seg = parse_for_segment(infix);
-	var arr = parse_for_original_segment(infixExpression);
+function onchange_infix(self) {
+	var infix_simplified = self;
+	
+	var div = self.parentElement;
+	var text = div.querySelector("input[name=text]");
+	var infix = div.querySelector("input[name=infix]");
+	var seg = div.querySelector("input[name=seg]");
+	var pos = div.querySelector("input[name=pos]");
+	var dep = div.querySelector("input[name=dep]");
+	var tree = div.querySelector("p[name=tree]");
+	
+	var seg_changed = parse_for_segment(infix_simplified.value);
+	var arr = parse_for_original_segment(infix.value);
 	var seg_original = arr[0];
 	var pos_original = arr[1];
 
-	console.assert(cmp(counterDict(seg_original), counterDict(seg)), "counterDict(seg_original) != counterDict(seg)");
+	console.assert(cmp(counterDict(seg_original), counterDict(seg_changed)), "counterDict(seg_original) != counterDict(seg_changed)");
 
 	var dic = {};
 	for (var i = 0; i < seg_original.length; i++) {
@@ -2046,12 +2085,31 @@ function modify_infix(infix, infixExpression) {
 	}
 
 	var index = [];
-	for (let word of seg)
+	for (let word of seg_changed)
 		index.push(dic[word].shift());
 
 	pos_original = JSON.stringify(pos_original);
 	index = JSON.stringify(index);
-	return [pos_original, index];
+	
+	request_post('algorithm/compile', {infix : infix_simplified.value, pos: pos_original, heads: index}).done(dict => {
+		console.log('dict from python =');
+		console.log(dict);
+		tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
+		text.value = dict.text;
+		infix.value = dict.infix;
+		infix_simplified.value = dict.infix_simplified;
+		seg.value = dict.seg;
+		pos.value = dict.pos;
+		dep.value = dict.dep;
+		
+		var length = Math.max(strlen(dict.infix_simplified), strlen(dict.seg), strlen(dict.pos), strlen(dict.dep));
+		length = length / 2 + 1;		
+		changeInputlength(infix_simplified, true, length);
+		changeInputlength(seg, true, length);
+		changeInputlength(pos, true, length);		
+		changeInputlength(dep, true, length);		
+	});
+	changeColor(self, self.parentElement.lastChild);
 }
 
 function quote_mysql(param) {
@@ -2132,7 +2190,8 @@ function onchange_segment(self) {
 	changeColor(self, self.nextElementSibling);
 }
 
-function onchange_seg(seg) {
+function onchange_seg(self) {
+	var seg = self;
 	var div = seg.parentElement;
 	var text = div.querySelector("input[name=text]");
 	var infix = div.querySelector("input[name=infix]");
@@ -2168,14 +2227,13 @@ function onchange_seg(seg) {
 		console.log(dict);
 		text.value = dict.text;
 		tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
-		infix.value = dict['infix'];
-
-		infix_simplified.value = dict['infix_simplified'];
-		seg.value = dict['seg'];		
-		pos.value = dict['pos'];
-		dep.value = dict['dep'];
+		infix.value = dict.infix;
+		infix_simplified.value = dict.infix_simplified;
+		seg.value = dict.seg;		
+		pos.value = dict.pos;
+		dep.value = dict.dep;
 		
-		var length = Math.max(strlen(dict['infix_simplified']), strlen(dict['seg']), strlen(dict['pos']), strlen(dict['dep']));
+		var length = Math.max(strlen(dict.infix_simplified), strlen(dict.seg), strlen(dict.pos), strlen(dict.dep));
 		length = length / 2 + 1;
 		
 		changeInputlength(infix_simplified, true, length);
@@ -2184,7 +2242,7 @@ function onchange_seg(seg) {
 		changeInputlength(dep, true, length);
 	});	
 	
-	changeColor(seg, seg.parentElement.lastChild);
+	changeColor(self, self.parentElement.lastChild);
 }
 
 function modify_structure(self) {
@@ -2214,29 +2272,7 @@ function modify_structure(self) {
 		console.log(element);
 	}
 
-	if (infix_simplified == self) {
-		var res = modify_infix(infix_simplified.value, infix.value);
-		var pos_original = res[0];
-		var index = res[1];
-
-		request_post('algorithm/compile', {infix : infix_simplified.value, pos: pos_original, index: index}).done(dict => {
-			console.log('dict from python =');
-			console.log(dict);
-			tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
-			
-			infix.value = dict['infix'];
-
-			infix_simplified.value = dict['infix_simplified'];
-			seg.value = dict['seg'];
-
-			pos.value = dict['pos'];
-			changeInputlength(pos, true);
-
-			dep.value = dict['dep'];
-			changeInputlength(dep, true);
-		});
-	}
-	else if (pos == self) {
+	if (pos == self) {
 		var segArr = seg.value.trim().split(/\s+/g);
 		var posArr = pos.value.trim().split(/\s+/g);
 
@@ -2270,15 +2306,15 @@ function modify_structure(self) {
 			console.log(dict);
 			tree.innerHTML = dict.tree.replace(/ /g, '&ensp;').replace(/\n/g, '<br>');
 			
-			infix.value = dict['infix'];
+			infix.value = dict.infix;
 
-			infix_simplified.value = dict['infix_simplified'];
-			seg.value = dict['seg'];
+			infix_simplified.value = dict.infix_simplified;
+			seg.value = dict.seg;
 
-			pos.value = dict['pos'];
+			pos.value = dict.pos;
 			changeInputlength(pos, true);
 
-			dep.value = dict['dep'];
+			dep.value = dict.dep;
 			changeInputlength(dep, true);
 		});
 	}
@@ -2288,8 +2324,8 @@ function modify_structure(self) {
 			console.log('dict from python =');
 			console.log(dict);
 			
-			infix.value = dict['infix'];
-			dep.value = dict['dep'];
+			infix.value = dict.infix;
+			dep.value = dict.dep;
 			changeInputlength(dep, true);
 		});
 
@@ -2781,8 +2817,6 @@ function concurrency_test(){
 }
 
 class Cookie{
-	static instance = new Cookie();
-	
 	constructor() {
 		this.dict = {};
 		console.log("document.cookie = " + document.cookie);
@@ -2821,3 +2855,5 @@ class Cookie{
 		delete this.dict[key];
 	}
 }
+
+Cookie.instance = new Cookie();

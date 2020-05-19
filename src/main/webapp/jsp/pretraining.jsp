@@ -82,8 +82,8 @@
 	switch (cmd) {
 	case "update":
 		if (matcher != null) {
-			sql = String.format("%s %s set text = regexp_replace(text, '%s', '%s') %s", cmd, table,
-					Utility.quote_mysql(matcher.text), Utility.quote_mysql(matcher.text_replacement),
+			sql = String.format("%s bert.tbl_%s_%s set text = regexp_replace(text, '%s', '%s') %s", cmd, table,
+					lang, Utility.quote_mysql(matcher.text), Utility.quote_mysql(matcher.text_replacement),
 					condition);
 
 			out.print(String.format("<p class=update ondblclick='mysql_execute(this)'>%s</p>",
@@ -134,8 +134,8 @@
 			//				break;
 			default:
 				for (Map<String, Object> dict : list) {
-					out.print(Jsp.createPretrainingEditor((int)(Integer) dict.get("id"), (String) dict.get("title"),
-							(String) dict.get("text"), null, false));
+					out.print(Jsp.createPretrainingEditor((int) (Integer) dict.get("id"),
+							(String) dict.get("title"), (String) dict.get("text"), null, false));
 				}
 
 			}

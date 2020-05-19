@@ -20,8 +20,8 @@
 	String text = request.getParameter("text");
 	String relation_text = request.getParameter("relation_text");
 
-	String reword = request.getParameter("reword");
-	String relation_reword = request.getParameter("relation_reword");
+	String derivant = request.getParameter("derivant");
+	String relation_derivant = request.getParameter("relation_derivant");
 
 	String label = request.getParameter("label");
 	String relation_label = request.getParameter("relation_label");
@@ -48,8 +48,8 @@
 			"mysql.text.value = '%s'", "mysql.relation_text.value = '%s'",
 			"changeInputlength(mysql.relation_text, true)",
 
-			"mysql.reword.value = '%s'", "mysql.relation_reword.value = '%s'",
-			"changeInputlength(mysql.relation_reword, true)",
+			"mysql.derivant.value = '%s'", "mysql.relation_derivant.value = '%s'",
+			"changeInputlength(mysql.relation_derivant, true)",
 
 			"mysql.training.value = %d", "mysql.rand.checked = %s", "mysql.limit.value = %s",
 
@@ -59,7 +59,7 @@
 
 			Utility.quote(text), relation_text,
 
-			Utility.quote(reword), relation_reword,
+			Utility.quote(derivant), relation_derivant,
 
 			training, rand == null ? "false" : "true",
 
@@ -73,8 +73,8 @@
 		conditions.add(Jsp.process_text("text", relation_text, text));
 	}
 
-	if (!reword.isEmpty()) {
-		conditions.add(Jsp.process_text("reword", relation_reword, reword));
+	if (!derivant.isEmpty()) {
+		conditions.add(Jsp.process_text("derivant", relation_derivant, derivant));
 	}
 
 	if (!label.isEmpty()) {
@@ -122,7 +122,26 @@
 			case "cn" :
 				filter = new MySQL.Filter() {
 					public Object sift(ResultSet res) throws SQLException {
-						return true;
+						String text = res.getString("text");
+						String derivant = res.getString("derivant");
+						String label = res.getString("label");
+						String _label = Native.lexiconCN(text, derivant);
+						if (label.equals(_label))
+							return null;
+						return _label;
+					}
+				};
+				break;
+			case "en" :
+				filter = new MySQL.Filter() {
+					public Object sift(ResultSet res) throws SQLException {
+						String text = res.getString("text");
+						String derivant = res.getString("derivant");
+						String label = res.getString("label");
+						String _label = Native.lexiconEN(text, derivant);
+						if (label.equals(_label))
+							return null;
+						return _label;
 					}
 				};
 				break;
@@ -147,20 +166,20 @@
 			switch (cmd) {
 				case "update" :
 					for (Map<String, Object> dict : list) {
-						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("reword"),
+						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("derivant"),
 								label_replacement, (Boolean) dict.get("training"),
 								!label_replacement.equals(dict.get("label"))));
 					}
 					break;
 				case "delete" :
 					for (Map<String, Object> dict : list) {
-						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("reword"),
+						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("derivant"),
 								(String) dict.get("label"), (Boolean) dict.get("training"), false));
 					}
 					break;
 				default :
 					for (Map<String, Object> dict : list) {
-						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("reword"),
+						out.print(Jsp.createLexiconEditor((String) dict.get("text"), (String) dict.get("derivant"),
 								(String) dict.get("label"), (Boolean) dict.get("training"), false));
 					}
 
@@ -174,7 +193,7 @@
 	if (cmd.equals("select") && !discrepant) {
 %>
 <script>
-	fill_tbl_hyponym();
+	fill_tbl_lexicon();
 </script>
 <%
 	}

@@ -55,6 +55,10 @@ public class MySQL extends DataSource.MySQLDataSource {
 			} else {
 				instance = static_construct(url, user, password);
 			}
+
+			int cache_size = 1 << 30;
+			instance.execute("set global tmp_table_size = %d", cache_size);
+			instance.execute("set global innodb_buffer_pool_size = %d", cache_size);
 		}
 	}
 
@@ -440,10 +444,9 @@ public class MySQL extends DataSource.MySQLDataSource {
 					values[j] = args[j][i];
 					if (description[j].Type.startsWith("varchar")) {
 						values[j] = String.format("'%s'", Utility.quote_mysql(values[j]));
-					}
-					else if (description[j].Type.startsWith("enum")) {
+					} else if (description[j].Type.startsWith("enum")) {
 						if (!Pattern.compile("\\d+").matcher(values[j]).matches())
-							values[j] = String.format("'%s'", values[j]);						
+							values[j] = String.format("'%s'", values[j]);
 					}
 				}
 

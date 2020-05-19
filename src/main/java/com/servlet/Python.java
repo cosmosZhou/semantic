@@ -18,7 +18,7 @@ public class Python {
 			parameters.put("text", "True");
 
 		String url = String.format("http://localhost:%s/eval", PropertyConfig.get("model", "tcp"));
-		return HttpClient.HttpClientPost(url, parameters);
+		return HttpClient.post(url, parameters);
 	}
 
 	public static String eval(String script) {

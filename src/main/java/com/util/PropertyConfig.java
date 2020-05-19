@@ -2,6 +2,7 @@ package com.util;
 
 import java.io.File;
 
+import org.apache.commons.lang.SystemUtils;
 import org.ini4j.ConfigParser;
 import org.ini4j.ConfigParser.InterpolationException;
 import org.ini4j.ConfigParser.NoOptionException;
@@ -13,8 +14,15 @@ public class PropertyConfig {
 		try {
 			System.out.println("initializing PropertyConfig");
 			config = new ConfigParser();
-			String config_path = new File(PropertyConfig.class.getResource("").getFile()).getParentFile().getParent()
-					+ "/config.ini";
+
+			String config_path;
+			if (SystemUtils.IS_OS_WINDOWS) {
+				config_path = new File(PropertyConfig.class.getResource("").getFile()).getParentFile().getParent()
+						+ "/develop.ini";
+			} else {
+				config_path = new File(PropertyConfig.class.getResource("").getFile()).getParentFile().getParent()
+						+ "/product.ini";
+			}
 
 			System.out.println("config_path = " + config_path);
 			config.read(config_path);
